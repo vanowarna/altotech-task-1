@@ -83,8 +83,8 @@ script and interview-defense notes prepared.
 
 | # | Requirement | Where | Status |
 |---|---|---|---|
-| X.1 | Working prototype, one-command Docker Compose | `deploy/` | ☐ |
-| X.2 | GitHub repository (code + tests + docs) | repo | 🟡 |
+| X.1 | Working prototype, one-command Docker Compose | `deploy/` | ✅ |
+| X.2 | GitHub repository (code + tests + docs) | repo | ✅ |
 | X.3 | GitHub Wiki (architecture, flow charts, sequence diagrams, ADRs, Brick design) | `docs/wiki/` (Home + 4 required pages) | ✅ |
 | X.4 | Unit + integration tests, coverage | 24 unit tests passing + `tests/integration/smoke_test.py` (live E2E); pure-logic coverage: brick 100%, topology 94% | ✅ |
 | X.5 | CI pipeline | `.github/workflows/ci.yml` (lint + unit tests + coverage + image builds) | ✅ |
