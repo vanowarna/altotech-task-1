@@ -58,7 +58,11 @@ async def main() -> None:
     log.info("AFDD engine started", extra={"interval_s": EVAL_INTERVAL})
 
     # Run one cycle immediately so faults appear without waiting a full interval.
-    await evaluator.evaluate_all()
+    # Guard it: a failed first cycle must not crash the engine — the scheduler keeps it alive.
+    try:
+        await evaluator.evaluate_all()
+    except Exception as exc:  # noqa: BLE001
+        log.error("initial evaluation cycle failed", extra={"error": str(exc)})
 
     try:
         while True:

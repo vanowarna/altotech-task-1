@@ -68,48 +68,54 @@ class AfddEvaluator:
             targets = await self.neo4j.devices_by_brick_class(rule["brick_class_target"])
             for dev in targets:
                 checked += 1
-                params = _merge_params(rule["params"], rule["property_overrides"], dev["property_id"])
-                window = int(params.get("window_minutes", 15))
-                readings = await self.ts.window(dev["id"], window)
+                # Isolate each device: one bad evaluation must never abort the cycle.
+                try:
+                    params = _merge_params(rule["params"], rule["property_overrides"], dev["property_id"])
+                    window = int(params.get("window_minutes", 15))
+                    readings = await self.ts.window(dev["id"], window)
 
-                baseline = None
-                if rule["condition_type"] == "energy_anomaly":
-                    baseline = await self.ts.baseline_avg(
-                        dev["id"], int(params.get("baseline_days", 7)), window
+                    baseline = None
+                    if rule["condition_type"] == "energy_anomaly":
+                        baseline = await self.ts.baseline_avg(
+                            dev["id"], int(params.get("baseline_days", 7)), window
+                        )
+
+                    result = evaluator.evaluate(
+                        EvalInput(readings=readings, params=params, now=now, baseline_avg=baseline)
                     )
 
-                result = evaluator.evaluate(
-                    EvalInput(readings=readings, params=params, now=now, baseline_avg=baseline)
-                )
-
-                if result.faulted:
-                    context = {
-                        "rule": rule["name"], "brick_class": rule["brick_class_target"],
-                        "location": dev.get("location"), "window_minutes": window,
-                        "detail": result.detail,
-                    }
-                    fault_id = await self.faults.open_fault(
-                        dev["id"], rule["id"], rule["severity"], context
-                    )
-                    if fault_id:
-                        opened += 1
-                        await self.dispatcher.dispatch({
-                            "event": "fault.detected", "fault_id": fault_id,
+                    if result.faulted:
+                        context = {
                             "rule": rule["name"], "brick_class": rule["brick_class_target"],
-                            "device_id": dev["id"], "property_id": dev["property_id"],
-                            "location": dev.get("location"), "severity": rule["severity"],
-                            "status": "active", "detected_at": int(now.timestamp()),
-                            "context": context,
-                        })
-                else:
-                    rid = await self.faults.resolve_fault(dev["id"], rule["id"])
-                    if rid:
-                        resolved += 1
-                        await self.dispatcher.dispatch({
-                            "event": "fault.resolved", "fault_id": rid, "rule": rule["name"],
-                            "device_id": dev["id"], "property_id": dev["property_id"],
-                            "status": "resolved", "resolved_at": int(now.timestamp()),
-                        })
+                            "location": dev.get("location"), "window_minutes": window,
+                            "detail": result.detail,
+                        }
+                        fault_id = await self.faults.open_fault(
+                            dev["id"], rule["id"], rule["severity"], context
+                        )
+                        if fault_id:
+                            opened += 1
+                            await self.dispatcher.dispatch({
+                                "event": "fault.detected", "fault_id": fault_id,
+                                "rule": rule["name"], "brick_class": rule["brick_class_target"],
+                                "device_id": dev["id"], "property_id": dev["property_id"],
+                                "location": dev.get("location"), "severity": rule["severity"],
+                                "status": "active", "detected_at": int(now.timestamp()),
+                                "context": context,
+                            })
+                    else:
+                        rid = await self.faults.resolve_fault(dev["id"], rule["id"])
+                        if rid:
+                            resolved += 1
+                            await self.dispatcher.dispatch({
+                                "event": "fault.resolved", "fault_id": rid, "rule": rule["name"],
+                                "device_id": dev["id"], "property_id": dev["property_id"],
+                                "status": "resolved", "resolved_at": int(now.timestamp()),
+                            })
+                except Exception as exc:  # noqa: BLE001
+                    log.warning("device evaluation failed",
+                                extra={"device": dev.get("id"), "rule": rule.get("id"),
+                                       "error": str(exc)})
 
         summary = {"rules": len(rules), "devices_checked": checked,
                    "faults_opened": opened, "faults_resolved": resolved}

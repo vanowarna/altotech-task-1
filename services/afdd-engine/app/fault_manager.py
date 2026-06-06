@@ -44,7 +44,7 @@ class FaultManager:
             CREATE (nf)-[:raisedBy]->(r)
             RETURN nf.id AS id
             """,
-            did=device_id, rid=rule_id, sev=severity, ts=ts,
+            fid=fault_id, did=device_id, rid=rule_id, sev=severity, ts=ts,
             ctx=json.dumps(context), open=OPEN_STATUSES,
         )
         if rows:
