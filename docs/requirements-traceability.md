@@ -35,7 +35,7 @@ Legend: ✅ done · 🟡 in progress · ☐ planned
 | 2.8 | Doc: class hierarchy + relationships as edges | brick-model.md | ✅ |
 | 2.9 | Doc: how rules target Brick classes via traversal | brick-model.md, AFDD doc | ✅ (design) |
 | 2.10 | Doc: how new classes/nodes auto-enable rules | brick-model.md | ✅ |
-| 2.11 | External integration design (analytics/digital twin/3rd-party BMS) + API contracts | brick-model.md (External integration), `docs/architecture` | 🟡 |
+| 2.11 | External integration design (analytics/digital twin/3rd-party BMS) + API contracts | `docs/brick-schema/external-integration.md` (contracts + fault webhook schema) | ✅ |
 
 ## Task 3 — Multi-Site AFDD Engine (35%)
 
@@ -82,7 +82,7 @@ Legend: ✅ done · 🟡 in progress · ☐ planned
 | X.1 | Working prototype, one-command Docker Compose | `deploy/` | ☐ |
 | X.2 | GitHub repository (code + tests + docs) | repo | 🟡 |
 | X.3 | GitHub Wiki (architecture, flow charts, sequence diagrams, ADRs, Brick design) | `docs/wiki/` export | 🟡 |
-| X.4 | Unit + integration tests, coverage | `services/*/tests`, `tests/integration` | ☐ |
+| X.4 | Unit + integration tests, coverage | 15 unit tests passing (topology, brick, generators, ingest); integration suite in Phase 5 | 🟡 |
 | X.5 | CI pipeline | `.github/workflows/ci.yml` | ☐ |
 | X.6 | Design-first evidence (docs before code) | `docs/` (this phase) | ✅ |
 | X.7 | GitHub workflow (feature branches, meaningful commits, PRs) | git history | ☐ |
