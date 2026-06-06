@@ -160,24 +160,23 @@
       renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
     function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);}
 
-    function makeLabel(text){const c=document.createElement("canvas"),x=c.getContext("2d");const fs=52;
+    function makeLabel(text){const c=document.createElement("canvas"),x=c.getContext("2d");const fs=42;
       x.font=`600 ${fs}px -apple-system,Segoe UI,sans-serif`;const w=x.measureText(text).width;c.width=Math.ceil(w)+60;c.height=fs+36;
-      x.font=`600 ${fs}px -apple-system,Segoe UI,sans-serif`;const r=22;x.fillStyle="rgba(13,16,22,.9)";
+      x.font=`600 ${fs}px -apple-system,Segoe UI,sans-serif`;const r=22;x.fillStyle="rgba(13,16,22,.72)";
       x.beginPath();x.moveTo(r,0);x.arcTo(c.width,0,c.width,c.height,r);x.arcTo(c.width,c.height,0,c.height,r);x.arcTo(0,c.height,0,0,r);x.arcTo(0,0,c.width,0,r);x.closePath();x.fill();
       x.strokeStyle="rgba(255,255,255,.08)";x.lineWidth=2;x.stroke();
       x.fillStyle="#eef1f6";x.textBaseline="middle";x.fillText(text,30,c.height/2+2);
       const t=new THREE.CanvasTexture(c);t.anisotropy=4;
       const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false,depthWrite:false}));
-      sp.scale.set(c.width/c.height*1.35,1.35,1);sp.renderOrder=10;return sp;}
+      sp.scale.set(c.width/c.height*0.82,0.82,1);sp.renderOrder=10;return sp;}
     function colorFor(rm){return new THREE.Color(rm.active_faults>0?(SEV3D[rm.worst_severity]||SEV3D.warning):SEV3D.healthy);}
     function styleRoom(m,rm){const col=colorFor(rm),f=rm.active_faults>0;
-      m.material.color=col;m.material.emissive=col;m.material.emissiveIntensity=f?0.7:0.12;
-      m.material.opacity=f?1:0.96;}
+      m.material.color=col;m.material.emissive=col;m.material.emissiveIntensity=f?0.85:0.16;
+      m.material.opacity=f?0.92:0.78;m.material.roughness=0.14;m.material.metalness=0.0;}
     function buildBuildings(topo){
       while(group.children.length)group.remove(group.children[0]);roomMeshes={};
       const tc=tcol();
       const slabMat=new THREE.MeshStandardMaterial({color:tc.slab,roughness:.9,metalness:.05});
-      const roofMat=new THREE.MeshStandardMaterial({color:tc.roof,roughness:.7,metalness:.15});
       const edgeMat=new THREE.LineBasicMaterial({color:tc.edge,transparent:true,opacity:.45});
       const fps=topo.properties.map(p=>{const rooms=p.rooms.filter(r=>r.type!=="electrical_zone");
         const fmap={};rooms.forEach(r=>(fmap[r.floor]=fmap[r.floor]||[]).push(r));
@@ -193,14 +192,13 @@
           const slab=new THREE.Mesh(new THREE.BoxGeometry(gw+0.7,0.16,gd+0.7),slabMat);slab.position.set(0,y,0);slab.receiveShadow=true;bg.add(slab);
           rs.forEach((room,ri)=>{const cx=((ri%f.cols)-(f.cols-1)/2)*CELL,cz=(Math.floor(ri/f.cols)-(rows-1)/2)*CELL,rh=FH*0.62;
             const geo=new THREE.BoxGeometry(CELL-0.28,rh,CELL-0.28);
-            const m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({roughness:.32,metalness:.25,transparent:true}));
+            const m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({roughness:.14,metalness:.0,transparent:true}));
             styleRoom(m,room);m.position.set(cx,y+0.08+rh/2,cz);m.castShadow=true;m.receiveShadow=true;m.userData={room,property:f.p};
             bg.add(m);roomMeshes[room.id]=m;
             const e=new THREE.LineSegments(new THREE.EdgesGeometry(geo),edgeMat);e.position.copy(m.position);bg.add(e);});
         });
         const topY=f.fks.length*FH;
-        const roof=new THREE.Mesh(new THREE.BoxGeometry(f.w+0.9,0.22,f.d+0.9),roofMat);roof.position.set(0,topY-FH+0.1+0.5*0.62*FH+0.2,0);roof.castShadow=true;bg.add(roof);
-        const lbl=makeLabel(f.p.name);lbl.position.set(0,topY+0.5,0);bg.add(lbl);});
+        const lbl=makeLabel(f.p.name);lbl.position.set(0,topY+1.3,0);bg.add(lbl);});
       built=true;fitView();
     }
     function updateColors(topo){topo.properties.forEach(p=>p.rooms.forEach(r=>{const m=roomMeshes[r.id];if(m)styleRoom(m,r);}));}
