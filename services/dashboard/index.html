@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AltoTech AFDD · Fault Console</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #f6f7f9; --panel: #ffffff; --text: #1a1d24; --muted: #6b7280;
+      --border: #e5e7eb; --accent: #4f46e5; --accent-soft: #eef2ff;
+      --crit: #dc2626; --warn: #f59e0b; --minor: #3b82f6; --info: #9ca3af; --ok: #10b981;
+      --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+    }
+    [data-theme="dark"] {
+      --bg: #0f1115; --panel: #181b22; --text: #e6e8ec; --muted: #9aa1ad;
+      --border: #272b34; --accent: #818cf8; --accent-soft: #1e2230;
+      --shadow: 0 1px 3px rgba(0,0,0,.4);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      transition: background .2s, color .2s;
+    }
+    header {
+      display: flex; align-items: center; gap: 16px; padding: 16px 24px;
+      background: var(--panel); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10;
+    }
+    .brand { font-weight: 700; font-size: 1.05rem; letter-spacing: -.01em; }
+    .brand small { color: var(--muted); font-weight: 500; }
+    .spacer { flex: 1; }
+    button {
+      font: inherit; cursor: pointer; border: 1px solid var(--border); background: var(--panel);
+      color: var(--text); border-radius: 8px; padding: 7px 12px; transition: background .15s, border .15s;
+    }
+    button:hover { border-color: var(--accent); }
+    .pill { display: inline-flex; align-items: center; gap: 6px; }
+    main { padding: 24px; max-width: 1200px; margin: 0 auto; }
+    .grid { display: grid; gap: 16px; }
+    .kpis { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 16px; }
+    .card {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+      padding: 18px; box-shadow: var(--shadow);
+    }
+    .kpi .label { color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; }
+    .kpi .value { font-size: 2rem; font-weight: 700; margin-top: 4px; }
+    .charts { grid-template-columns: 1fr 1fr; margin-bottom: 16px; }
+    @media (max-width: 760px) { .charts { grid-template-columns: 1fr; } }
+    .card h3 { margin: 0 0 12px; font-size: .95rem; }
+    .filters { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; align-items: center; }
+    select {
+      font: inherit; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--panel); color: var(--text);
+    }
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; }
+    tr:last-child td { border-bottom: none; }
+    .table-wrap { overflow-x: auto; }
+    .badge { padding: 3px 9px; border-radius: 999px; font-size: .74rem; font-weight: 600; white-space: nowrap; }
+    .sev-critical { background: color-mix(in srgb, var(--crit) 16%, transparent); color: var(--crit); }
+    .sev-warning  { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+    .sev-minor    { background: color-mix(in srgb, var(--minor) 16%, transparent); color: var(--minor); }
+    .sev-info     { background: color-mix(in srgb, var(--info) 20%, transparent); color: var(--muted); }
+    .st-active { color: var(--crit); font-weight: 600; }
+    .st-acknowledged { color: var(--warn); font-weight: 600; }
+    .st-resolved { color: var(--ok); font-weight: 600; }
+    .act { font-size: .8rem; padding: 4px 9px; margin-right: 4px; }
+    .muted { color: var(--muted); }
+    .empty { text-align: center; color: var(--muted); padding: 32px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    #status { font-size: .8rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">AltoTech <span class="muted">AFDD</span> <small>· Fault Console</small></div>
+    <div class="spacer"></div>
+    <span id="status">connecting…</span>
+    <button id="refresh" class="pill">↻ Refresh</button>
+    <button id="theme" class="pill">🌙</button>
+  </header>
+
+  <main>
+    <div class="grid kpis" id="kpis"></div>
+
+    <div class="grid charts">
+      <div class="card"><h3>Active faults by severity</h3><canvas id="sevChart" height="160"></canvas></div>
+      <div class="card"><h3>Active faults by property</h3><canvas id="propChart" height="160"></canvas></div>
+    </div>
+
+    <div class="card">
+      <h3>Faults</h3>
+      <div class="filters">
+        <select id="f-property"><option value="">All properties</option></select>
+        <select id="f-severity">
+          <option value="">All severities</option>
+          <option>critical</option><option>warning</option><option>minor</option><option>info</option>
+        </select>
+        <select id="f-status">
+          <option value="">All statuses</option>
+          <option>active</option><option>acknowledged</option><option>resolved</option>
+        </select>
+        <span class="muted" id="count"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Severity</th><th>Rule</th><th>Property</th><th>Location</th>
+            <th>Device</th><th>Status</th><th>Detected</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="faults"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Same-origin: nginx proxies /api to the FastAPI service.
+    const API = (location.origin && !location.origin.startsWith("file")) ? "" : "http://localhost:8000";
+    const SEV_COLORS = { critical: "#dc2626", warning: "#f59e0b", minor: "#3b82f6", info: "#9ca3af" };
+    let sevChart, propChart;
+
+    const $ = (id) => document.getElementById(id);
+    const fmtTime = (s) => s ? new Date(s * 1000).toLocaleString() : "—";
+
+    function setStatus(text, ok = true) {
+      $("status").innerHTML = `<span class="dot" style="background:${ok ? 'var(--ok)' : 'var(--crit)'}"></span> ${text}`;
+    }
+
+    async function api(path) {
+      const r = await fetch(API + path);
+      if (!r.ok) throw new Error(r.status + " " + path);
+      return r.json();
+    }
+
+    function kpiCard(label, value, color) {
+      return `<div class="card kpi"><div class="label">${label}</div>
+              <div class="value" style="color:${color || 'var(--text)'}">${value}</div></div>`;
+    }
+
+    async function loadSummary() {
+      const s = await api("/api/v1/dashboard/summary");
+      const sev = Object.fromEntries(s.by_severity.map(x => [x.severity, x.count]));
+      $("kpis").innerHTML = [
+        kpiCard("Active faults", s.totals.active, s.totals.active ? "var(--crit)" : "var(--ok)"),
+        kpiCard("Properties", s.totals.properties),
+        kpiCard("Critical", sev.critical || 0, "var(--crit)"),
+        kpiCard("Warning", sev.warning || 0, "var(--warn)"),
+      ].join("");
+
+      // property filter options
+      const psel = $("f-property");
+      if (psel.options.length <= 1) {
+        s.by_property.forEach(p => {
+          const o = document.createElement("option"); o.value = p.property_id;
+          o.textContent = p.name || p.property_id; psel.appendChild(o);
+        });
+      }
+      drawSeverity(s.by_severity);
+      drawProperty(s.by_property);
+    }
+
+    function drawSeverity(data) {
+      const labels = data.map(d => d.severity), values = data.map(d => d.count);
+      const colors = labels.map(l => SEV_COLORS[l] || "#9ca3af");
+      const cfg = { type: "doughnut",
+        data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0 }] },
+        options: { plugins: { legend: { position: "bottom" } }, cutout: "62%" } };
+      if (sevChart) { sevChart.data = cfg.data; sevChart.update(); }
+      else sevChart = new Chart($("sevChart"), cfg);
+      if (!values.length) $("sevChart").parentElement.querySelector("canvas").style.opacity = .3;
+    }
+
+    function drawProperty(data) {
+      const labels = data.map(d => d.name || d.property_id), values = data.map(d => d.active_faults);
+      const cfg = { type: "bar",
+        data: { labels, datasets: [{ data: values, backgroundColor: "#4f46e5", borderRadius: 6 }] },
+        options: { plugins: { legend: { display: false } },
+                   scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } } };
+      if (propChart) { propChart.data = cfg.data; propChart.update(); }
+      else propChart = new Chart($("propChart"), cfg);
+    }
+
+    async function loadFaults() {
+      const q = new URLSearchParams();
+      if ($("f-property").value) q.set("property", $("f-property").value);
+      if ($("f-severity").value) q.set("severity", $("f-severity").value);
+      if ($("f-status").value) q.set("status", $("f-status").value);
+      const faults = await api("/api/v1/faults?" + q.toString());
+      $("count").textContent = `${faults.length} shown`;
+      const tb = $("faults");
+      if (!faults.length) { tb.innerHTML = `<tr><td colspan="8" class="empty">No faults 🎉</td></tr>`; return; }
+      tb.innerHTML = faults.map(f => `
+        <tr>
+          <td><span class="badge sev-${f.severity}">${f.severity}</span></td>
+          <td>${f.rule || "—"}</td>
+          <td>${f.property_id || "—"}</td>
+          <td>${f.location || "—"}</td>
+          <td class="muted">${f.device_id || "—"}</td>
+          <td><span class="st-${f.status}">${f.status}</span></td>
+          <td class="muted">${fmtTime(f.detected_at)}</td>
+          <td>
+            ${f.status !== "resolved" ? `<button class="act" onclick="act('${f.id}','ack')">Ack</button>
+            <button class="act" onclick="act('${f.id}','resolve')">Resolve</button>` : "—"}
+          </td>
+        </tr>`).join("");
+    }
+
+    async function act(id, action) {
+      try { await fetch(API + `/api/v1/faults/${id}/${action}`, { method: "POST" }); refresh(); }
+      catch (e) { alert("Action failed: " + e.message); }
+    }
+
+    async function refresh() {
+      try { setStatus("live"); await loadSummary(); await loadFaults(); }
+      catch (e) { setStatus("API unreachable", false); }
+    }
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      const next = html.dataset.theme === "dark" ? "light" : "dark";
+      html.dataset.theme = next;
+      $("theme").textContent = next === "dark" ? "☀️" : "🌙";
+      try { localStorage.setItem("afdd-theme", next); } catch (e) {}
+    }
+
+    // init
+    try { const t = localStorage.getItem("afdd-theme"); if (t) { document.documentElement.dataset.theme = t;
+      $("theme").textContent = t === "dark" ? "☀️" : "🌙"; } } catch (e) {}
+    $("theme").onclick = toggleTheme;
+    $("refresh").onclick = refresh;
+    ["f-property", "f-severity", "f-status"].forEach(id => $(id).onchange = loadFaults);
+    refresh();
+    setInterval(refresh, 15000); // auto-refresh
+  </script>
+</body>
+</html>

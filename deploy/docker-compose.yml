@@ -1,0 +1,121 @@
+# AltoTech Multi-Site AFDD — full stack, one command:  docker compose up --build
+# Services: neo4j (graph) + timescaledb (time-series) + graph-loader (init) +
+#           api + afdd-engine + edge-simulator + dashboard.
+name: altotech-afdd
+
+x-neo4j-env: &neo4j-env
+  NEO4J_URI: bolt://neo4j:7687
+  NEO4J_USER: neo4j
+  NEO4J_PASSWORD: ${NEO4J_PASSWORD:-altotech123}
+
+x-ts-env: &ts-env
+  TS_HOST: timescaledb
+  TS_PORT: "5432"
+  TS_DB: ${TS_DB:-afdd}
+  TS_USER: ${TS_USER:-afdd}
+  TS_PASSWORD: ${TS_PASSWORD:-afdd123}
+
+services:
+  neo4j:
+    image: neo4j:5-community
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-altotech123}
+      NEO4J_server_memory_pagecache_size: 256M
+    ports:
+      - "7474:7474"   # Neo4j Browser (great for the live demo)
+      - "7687:7687"   # Bolt
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_USER: ${TS_USER:-afdd}
+      POSTGRES_PASSWORD: ${TS_PASSWORD:-afdd123}
+      POSTGRES_DB: ${TS_DB:-afdd}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./timescale/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ts_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TS_USER:-afdd} -d ${TS_DB:-afdd}"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  graph-loader:
+    build:
+      context: ..
+      dockerfile: deploy/loader/Dockerfile
+    environment:
+      <<: *neo4j-env
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: ..
+      dockerfile: services/api/Dockerfile
+    environment:
+      <<: [*neo4j-env, *ts-env]
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      ENV: ${ENV:-dev}
+    ports:
+      - "8000:8000"
+    depends_on:
+      neo4j:
+        condition: service_healthy
+      timescaledb:
+        condition: service_healthy
+
+  afdd-engine:
+    build:
+      context: ..
+      dockerfile: services/afdd-engine/Dockerfile
+    environment:
+      <<: [*neo4j-env, *ts-env]
+      EVAL_INTERVAL_SECONDS: ${EVAL_INTERVAL_SECONDS:-60}
+      ALERT_CHANNELS: ${ALERT_CHANNELS:-log}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+      SEED_RULES: "true"
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    depends_on:
+      api:
+        condition: service_healthy
+      graph-loader:
+        condition: service_completed_successfully
+
+  edge-simulator:
+    build:
+      context: ..
+      dockerfile: services/edge-simulator/Dockerfile
+    environment:
+      API_BASE_URL: http://api:8000
+      TOPOLOGY_PATH: /app/deploy/topology.yaml
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    depends_on:
+      api:
+        condition: service_healthy
+      graph-loader:
+        condition: service_completed_successfully
+
+  dashboard:
+    build:
+      context: ..
+      dockerfile: services/dashboard/Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+volumes:
+  neo4j_data:
+  ts_data:

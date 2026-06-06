@@ -1,0 +1,34 @@
+# Building topology — the single declarative source for the 3 hotels.
+# Consumed by the graph loader (graph/load_topology.py) and the edge simulator.
+# Fully configurable: add hotels, change rooms/floors/sensors/power meters.
+
+hotels:
+  - id: hotel_a
+    name: "Hotel A — Bangkok"
+    timezone: "Asia/Bangkok"
+    floors: 2
+    rooms: 10
+    sensors: [temperature, humidity, co2, occupancy]
+    power_meters_per_floor: 0
+    config:
+      operating_hours: { start: "06:00", end: "22:00" }
+
+  - id: hotel_b
+    name: "Hotel B — Chiang Mai"
+    timezone: "Asia/Bangkok"
+    floors: 2
+    rooms: 8
+    sensors: [temperature, humidity, co2, occupancy]
+    power_meters_per_floor: 1
+    config:
+      operating_hours: { start: "06:00", end: "22:00" }
+
+  - id: hotel_c
+    name: "Hotel C — Phuket"
+    timezone: "Asia/Bangkok"
+    floors: 3
+    rooms: 12
+    sensors: [temperature, humidity, co2, occupancy]
+    power_meters_per_floor: 1
+    config:
+      operating_hours: { start: "06:00", end: "22:00" }
