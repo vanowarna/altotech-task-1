@@ -1,11 +1,13 @@
 # AltoTech — Multi-Site AFDD with Brick Schema (Graph DB Edition)
 
 > **Detect. Diagnose. Optimize.** A multi-site Automated Fault Detection & Diagnostics
-> platform that models 3 hotels as a **Brick Schema graph** (Neo4j), ingests sensor
-> readings into **TimescaleDB**, and runs a **Brick-aware AFDD engine** that detects
-> equipment faults and surfaces them on a clean, real-time dashboard.
+> platform that models buildings as a **Brick Schema graph** (Neo4j), ingests sensor
+> readings into **TimescaleDB**, and runs a **Brick-aware AFDD engine** that surfaces
+> equipment faults on a live 3D operations console.
 
-Answers the question: **"What equipment needs attention, and why?"**
+Answers: **"What equipment needs attention, and why?"**
+
+📐 **Full architecture overview: [`ARCHITECTURE.md`](ARCHITECTURE.md)** — read this first.
 
 ---
 
@@ -13,59 +15,51 @@ Answers the question: **"What equipment needs attention, and why?"**
 
 ```bash
 cd deploy
-cp .env.example .env          # optional; sensible defaults work out of the box
+cp .env.example .env          # sensible defaults work out of the box
 docker compose up --build
 ```
 
-That brings up the whole stack and **seeds 3 hotels (125 devices), default AFDD rules,
-2 hours of backfilled history with embedded faults**, then evaluates rules every 60s.
+Brings up the whole stack and seeds **4 properties (143 devices)**, default AFDD rules, a
+backfill of history with embedded faults, then evaluates rules continuously.
 
 | URL | What |
 |---|---|
-| http://localhost:8080 | **Fault Console** dashboard (light/dark, mobile) |
-| http://localhost:8000/docs | **Swagger UI** (OpenAPI) for the API |
-| http://localhost:8000/health | Liveness · `/ready` for readiness · `/metrics` for Prometheus |
-| http://localhost:7474 | Neo4j Browser (explore the Brick graph; user `neo4j` / pass from `.env`) |
+| http://localhost:8080 | **3D Fault Console** — building map, KPIs, charts, activity log |
+| http://localhost:8000/docs | **Swagger UI** (OpenAPI) |
+| http://localhost:8000/health | Liveness · `/ready` readiness · `/metrics` Prometheus |
+| http://localhost:7474 | Neo4j Browser (explore the Brick graph; user `neo4j`, pass from `.env`) |
 
-Within a minute the dashboard shows active faults across the 3 synthetic hotels.
+**The 3D building map** shows every property as a tower of rooms colored by their worst active
+fault (green→red). Orbit/zoom/pan freely; **hover a room** to see its live sensor readings
+(temperature, humidity, CO₂, occupancy) and fault status. KPIs show device counts, healthy vs
+faulted, and live ingest rate; the activity log streams recent fault events.
 
-**Live building map (3D).** The dashboard centerpiece is a Three.js view of all
-properties — each room is a cell colored by its worst active fault (green→red), so you
-literally see which rooms need attention. KPIs show device counts, healthy vs faulted,
-and live ingest rate; the activity log (scrollable) streams recent fault events.
+**Real + synthetic data.** Three hotels are driven by a synthetic simulator with injected
+faults; a fourth ("Hotel D — Live Data") is fed by a **CSV replayer** streaming AltoTech's
+provided `iot_sample_data` recordings, so the demo runs on genuine sensor data too.
 
-**Real sensor data.** Alongside the synthetic simulator, a **CSV replayer** streams
-AltoTech's provided `00-documents/iot_sample_data` recordings into a dedicated property
-("Hotel D — Live Data") so the demo runs on genuine sensor data too.
-
-**Demo speed.** Defaults use a fast preset (`EVAL_INTERVAL_SECONDS=15`, 30-min
-backfill). Set `EVAL_INTERVAL_SECONDS=60` in `deploy/.env` for production-realistic
-timing.
+**Demo speed.** Defaults use a fast preset (`EVAL_INTERVAL_SECONDS=15`). Set it to `60` in
+`deploy/.env` for production-realistic timing.
 
 ---
 
 ## Architecture at a glance
 
 ```
-Edge Simulator → Ingestion API (Brick resolution via graph) → TimescaleDB
-                                   │                                 ▲
-                                   ▼                                 │ window queries
-                              Neo4j (Brick graph) ◀── AFDD Engine ───┘
-                                   │  faults                │ alerts
-                                   ▼                        ▼
-                         Dashboard / Swagger          webhook + log
+Edge (simulator + CSV replayer)
+   → Ingestion API (Brick resolution via the graph)
+   → TimescaleDB (readings)            Neo4j (Brick graph: topology + rules + faults)
+   → AFDD engine (traverse targets → window query → evaluate → open/resolve fault → alert)
+   → Dashboard (3D map) / Swagger / webhook + log
 ```
 
-- **Graph (Neo4j):** topology + Brick semantics — `Property → Location → Device`,
-  typed by `BrickClass`, plus `Rule` and `Fault` nodes.
-- **Time-series (TimescaleDB):** the high-volume readings hypertable, joined to the
-  graph by `device_id`. (See [ADR-0002](docs/adr/0002-timeseries-boundary.md) — the
-  key design decision.)
-- **AFDD engine:** scheduler → graph-resolved condition evaluator → fault manager
-  (lifecycle + dedup) → pluggable dispatcher.
+- **Graph (Neo4j):** `Property → Location → Device` typed by `BrickClass`, plus `Rule` and `Fault`.
+- **Time-series (TimescaleDB):** high-volume readings hypertable, joined to the graph by `device_id`.
+  (The boundary decision: [ADR-0002](docs/adr/0002-timeseries-boundary.md).)
+- **AFDD engine:** scheduler → graph-resolved evaluator → fault manager (lifecycle + dedup) → pluggable dispatcher.
 
-Full design docs: [`docs/`](docs/) — architecture, sequence diagrams, ADRs, Brick
-model, scalability, AI-ready notes, and a [requirements traceability matrix](docs/requirements-traceability.md).
+Deeper docs: [`ARCHITECTURE.md`](ARCHITECTURE.md), [`docs/`](docs/) (ADRs, sequence diagrams,
+Brick model, scalability, AI-ready), and the [requirements traceability matrix](docs/requirements-traceability.md).
 
 ---
 
@@ -75,13 +69,16 @@ model, scalability, AI-ready notes, and a [requirements traceability matrix](doc
 services/
   api/             FastAPI — ingestion, query, rules, faults, dashboard data
   afdd-engine/     scheduler + evaluator + fault manager + dispatcher + 4 rules
-  edge-simulator/  configurable sensor simulator with embedded anomalies
-  dashboard/       single-page Fault Console (nginx)
+  edge-simulator/  configurable synthetic sensors with embedded anomalies
+  csv-replayer/    streams real sample CSVs into the hotel_live property
+  dashboard/       single-page 3D console (nginx + reverse proxy to api)
 packages/shared/   Brick mapping, topology builder, models, DB clients (one source of truth)
 graph/             Cypher schema + idempotent topology loader
-deploy/            docker-compose, env, timescale init, k8s + prometheus (bonus)
-docs/              ADRs, architecture, Brick design, scalability, RTM (wiki source)
+deploy/            docker-compose, .env, timescale init, topology.yaml, k8s + prometheus
+docs/              ADRs, architecture, Brick design, scalability, AI-ready, RTM, wiki, DEMO
 skills/            bonus Claude Code SKILL.md (Brick + AFDD)
+tests/integration/ live end-to-end smoke test
+ARCHITECTURE.md    reviewer-facing architecture overview
 ```
 
 ---
@@ -89,30 +86,21 @@ skills/            bonus Claude Code SKILL.md (Brick + AFDD)
 ## Development & tests
 
 ```bash
-# install all test deps (shared lib + fastapi + apscheduler + httpx + pytest)
-pip install -r requirements-dev.txt
-
-# run the whole suite (each service in its own process — see note below)
-./scripts/run_tests.sh
+pip install -r requirements-dev.txt    # shared lib + fastapi + apscheduler + httpx + pytest
+./scripts/run_tests.sh                  # runs each service suite in its own process
 ```
 
-Or run a single suite directly:
+27 unit tests cover the topology builder, Brick mapping, simulator anomalies, ingestion
+resolution, the four rule evaluators, and the fault-manager Cypher guard.
 
+> Each service has its own top-level `app` package, so the suites run in **separate processes**
+> (a single pytest run across services would collide in `sys.modules`). CI and
+> `scripts/run_tests.sh` handle this; see `.github/workflows/ci.yml`.
+
+End-to-end against a running stack:
 ```bash
-python -m pytest packages/shared/tests
-(cd services/edge-simulator && python -m pytest tests)
-(cd services/api && python -m pytest tests)
-(cd services/afdd-engine && python -m pytest tests)
+python tests/integration/smoke_test.py
 ```
-
-24 unit tests cover the topology builder, Brick mapping, simulator anomalies, ingestion
-resolution, and all four rule evaluators.
-
-> **Why per-service runs?** Each service is an independently-deployable unit with its
-> own top-level `app` package (`services/api/app`, `services/afdd-engine/app`). A single
-> `pytest` invocation across services would collide in `sys.modules` (one service's
-> `app` shadows another). `scripts/run_tests.sh` and CI therefore run each suite in its
-> own process — the standard pattern for a multi-service repo.
 
 ---
 
@@ -125,13 +113,13 @@ resolution, and all four rule evaluators.
 | Schedule Violation | active outside operating hours | `Occupancy_Sensor` |
 | Energy Anomaly | usage > rolling baseline by % | `Electrical_Power_Sensor` |
 
-Rules are **data** (graph nodes) with per-property overrides; new rule *types* plug in
-via an evaluator registry — no code changes for new rule instances. Author new rules at
+Rules are **data** (graph nodes) with per-property overrides; new rule *types* plug in via an
+evaluator registry — no code changes for new rule instances. Author new rules at
 `POST /api/v1/rules` (schema in [`skills/SKILL.md`](skills/SKILL.md)).
 
 ---
 
 ## Configuration
-All config is environment-driven (`deploy/.env`). The building topology is declarative
-(`deploy/topology.yaml`) — change hotels, rooms, floors, sensors, or push interval there
-and both the graph loader and simulator follow.
+Environment-driven (`deploy/.env`). The building topology is declarative
+(`deploy/topology.yaml`) — change hotels, rooms, floors, sensors, or push interval there and
+both the graph loader and simulator follow.
