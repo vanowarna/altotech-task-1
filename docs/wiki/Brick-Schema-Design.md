@@ -1,8 +1,8 @@
 # Brick Schema Design
 
 How the Brick ontology maps to the graph data model. Full detail:
-[`docs/brick-schema/brick-model.md`](../brick-schema/brick-model.md) ·
-[external integration](../brick-schema/external-integration.md).
+[`docs/brick-schema/brick-model.md`](https://github.com/vanowarna/altotech-task-1/blob/main/docs/brick-schema/brick-model.md) ·
+[external integration](https://github.com/vanowarna/altotech-task-1/blob/main/docs/brick-schema/external-integration.md).
 
 ## Mapping
 Brick classes → node types; Brick relationships → edges.
@@ -33,7 +33,6 @@ RETURN b.uri AS brick_class, l.name AS location, p.id AS property_id
 ```
 
 ## Why this scales
-A `Rule` targets a `BrickClass`; devices are typed by `rdf_type`. Add a new device of an
-existing class → instantly covered by matching rules. Add a new class + rule → detection
-enabled fleet-wide by traversal alone. No code changes — semantics are first-class graph
-data, not bolted-on tags.
+A `Rule` targets a `BrickClass`; devices are typed by `rdf_type`. Add a device of an existing
+class → instantly covered by matching rules. Add a class + rule → detection enabled fleet-wide
+by traversal alone. No code changes — semantics are first-class graph data, not bolted-on tags.
