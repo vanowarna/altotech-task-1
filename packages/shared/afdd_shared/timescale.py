@@ -99,6 +99,18 @@ class TimescaleClient:
             )
         return int(val or 0)
 
+    async def latest_all(self) -> list[dict[str, Any]]:
+        """Latest reading per device (for the live hover panel)."""
+        assert self._pool
+        async with self._pool.acquire() as con:
+            rows = await con.fetch(
+                """
+                SELECT DISTINCT ON (device_id) device_id, datapoint, value, value_text, time
+                FROM readings ORDER BY device_id, time DESC
+                """
+            )
+        return [dict(r) for r in rows]
+
     async def window(self, device_id: str, minutes: int) -> list[dict[str, Any]]:
         assert self._pool
         async with self._pool.acquire() as con:

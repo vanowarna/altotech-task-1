@@ -116,10 +116,11 @@ async def topology() -> dict:
         OPTIONAL MATCH (f:Fault)-[:detectedOn]->(d)
           WHERE f.status IN $open
         WITH p, l, count(DISTINCT d) AS devices, count(DISTINCT f) AS active_faults,
-             collect(DISTINCT f.severity) AS severities
+             collect(DISTINCT f.severity) AS severities,
+             collect(DISTINCT d{.id, .datapoint}) AS devicelist
         RETURN p.id AS property_id, p.name AS property_name,
                l.id AS location_id, l.name AS location_name, l.floor AS floor,
-               l.type AS type, devices, active_faults, severities
+               l.type AS type, devices, active_faults, severities, devicelist
         ORDER BY p.id, l.floor, l.name
         """,
         open=OPEN_STATUSES,
@@ -138,5 +139,21 @@ async def topology() -> dict:
             "id": r["location_id"], "name": r["location_name"], "floor": r["floor"],
             "type": r["type"], "devices": r["devices"],
             "active_faults": r["active_faults"], "worst_severity": worst,
+            "device_list": r.get("devicelist") or [],
         })
     return {"properties": list(props.values())}
+
+
+@router.get("/dashboard/readings", summary="Latest reading per device (for the live 3D hover panel)")
+async def readings_latest() -> dict:
+    rows = await get_timescale().latest_all()
+    out: dict[str, dict] = {}
+    for r in rows:
+        t = r.get("time")
+        out[r["device_id"]] = {
+            "datapoint": r["datapoint"],
+            "value": r["value"],
+            "value_text": r["value_text"],
+            "time": int(t.timestamp()) if t else None,
+        }
+    return out

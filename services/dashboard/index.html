@@ -36,9 +36,9 @@
     .viz-tools{position:absolute;right:12px;top:12px;display:flex;gap:6px}
     .viz-tools button{padding:5px 10px;font-size:12px;background:color-mix(in srgb,var(--panel) 82%,transparent);backdrop-filter:blur(7px)}
     .hint{position:absolute;left:12px;top:12px;font-size:11px;color:var(--muted);background:color-mix(in srgb,var(--panel) 70%,transparent);padding:4px 9px;border-radius:8px}
-    #tip{position:absolute;pointer-events:none;z-index:5;display:none;font-size:12px;background:var(--panel);border:1px solid var(--border);border-radius:9px;padding:8px 10px;box-shadow:0 8px 24px rgba(0,0,0,.4);max-width:230px}
+    #tip{position:absolute;pointer-events:none;z-index:5;display:none;font-size:12px;background:var(--panel);border:1px solid var(--border);border-radius:9px;padding:8px 10px;box-shadow:0 8px 24px rgba(0,0,0,.4);max-width:270px}
     #tip .t{font-weight:600;margin-bottom:2px}#tip .s{color:var(--muted);font-size:11.5px}
-    #tip .pill{display:inline-block;margin-top:5px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
+    #tip .rd{margin-top:6px;font-size:11.5px;line-height:1.55;color:var(--text)}#tip .rd b{font-weight:600}#tip .pill{display:inline-block;margin-top:6px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
     .right{display:flex;flex-direction:column;gap:12px;min-height:0}
     .charts{flex:0 0 auto}.charts .body{display:flex;gap:12px;padding:10px 14px;align-items:center}
     .chartbox{width:118px;height:118px;flex:0 0 auto}
@@ -98,6 +98,7 @@
     const API=(location.origin&&!location.origin.startsWith("file"))?"":"http://localhost:8000";
     const SEV={critical:"#ef4444",warning:"#f59e0b",minor:"#3b82f6",info:"#9aa1ad"};
     const SEV3D={critical:0xef4444,warning:0xf59e0b,minor:0x3b82f6,info:0x9aa1ad,healthy:0x34d399};
+    const UNIT={temperature:"°C",humidity:"%",co2:" ppm",power:" kW"};
     const $=id=>document.getElementById(id);
     const fmtAgo=s=>{if(!s)return"—";const d=Math.max(0,Math.floor(Date.now()/1000-s));return d<60?d+"s ago":d<3600?Math.floor(d/60)+"m ago":Math.floor(d/3600)+"h ago";};
     async function api(p){const r=await fetch(API+p);if(!r.ok)throw new Error(r.status);return r.json();}
@@ -219,7 +220,14 @@
       raycaster.setFromCamera(pointer,camera);const hit=raycaster.intersectObjects(Object.values(roomMeshes),false)[0];const tip=$("tip");
       if(hit){const {room,property}=hit.object.userData;
         const col=room.active_faults>0?SEV[room.worst_severity]||"#f59e0b":"#34d399";
-        tip.innerHTML=`<div class="t">${property.name}</div><div class="s">${room.name} · floor ${room.floor} · ${room.devices} devices</div>
+        const rd=window.__readings||{};
+        const lines=(room.device_list||[]).map(d=>{const v=rd[d.id];if(!v)return null;
+          if(d.datapoint==="occupancy")return `<b>Occupancy</b> ${v.value_text||(v.value>=0.5?"occupied":"unoccupied")}`;
+          const val=(v.value!=null)?(Math.round(v.value*10)/10):(v.value_text||"—");
+          const nm=d.datapoint.charAt(0).toUpperCase()+d.datapoint.slice(1);
+          return `<b>${nm}</b> ${val}${UNIT[d.datapoint]||""}`;}).filter(Boolean);
+        const live=lines.length?`<div class="rd">${lines.join(" &nbsp;·&nbsp; ")}</div>`:"";
+        tip.innerHTML=`<div class="t">${property.name}</div><div class="s">${room.name} · floor ${room.floor} · ${room.devices} devices</div>${live}
           <span class="pill" style="background:${col}22;color:${col}">${room.active_faults>0?(room.active_faults+" active fault"+(room.active_faults>1?"s":"")):"healthy"}</span>`;
         tip.style.display="block";const vw=$("scene").parentElement.getBoundingClientRect();
         let x=ev.clientX-vw.left+14,y=ev.clientY-vw.top+14;x=Math.min(x,vw.width-tip.offsetWidth-8);y=Math.min(y,vw.height-tip.offsetHeight-8);
@@ -228,7 +236,8 @@
       built=false;if(window.__topo)buildBuildings(window.__topo);}
 
     async function refresh(){try{setStatus("live");
-      const topo=await api("/api/v1/dashboard/topology");window.__topo=topo;
+      const [topo,readings]=await Promise.all([api("/api/v1/dashboard/topology"),api("/api/v1/dashboard/readings").catch(()=>({}))]);
+      window.__topo=topo;window.__readings=readings;
       if(!built)buildBuildings(topo);else updateColors(topo);
       await Promise.all([loadStatsAndSummary(),loadLog()]);
     }catch(e){setStatus("API unreachable",false);}}
