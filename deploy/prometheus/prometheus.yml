@@ -1,0 +1,11 @@
+# Prometheus scrape config (bonus). The API exposes /metrics via
+# prometheus-fastapi-instrumentator. Run Prometheus pointed at this file to collect
+# request rate/latency and process metrics.
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: afdd-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["api:8000"]

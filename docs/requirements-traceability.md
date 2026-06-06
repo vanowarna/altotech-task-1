@@ -65,15 +65,15 @@ Legend: ✅ done · 🟡 in progress · ☐ planned
 
 | # | Requirement | Where | Status |
 |---|---|---|---|
-| 4.1 | Docker Compose (api + graph + TS + simulator + engine) | `deploy/docker-compose.yml` | ☐ |
-| 4.2 | Environment configs (dev/prod) | `deploy/.env.example` | ☐ |
-| 4.3 | Health check endpoints | `/health` | ☐ |
-| 4.4 | Structured logging | shared logging config | ☐ |
-| 4.5 | OpenAPI/Swagger UI | FastAPI `/docs` | ☐ |
-| 4.6 | README for one-command startup | `README.md` | ☐ |
-| 4.7 | **Bonus** Kubernetes manifests | `deploy/k8s/` | ☐ |
-| 4.8 | **Bonus** Prometheus metrics endpoint | `/metrics` | ☐ |
-| 4.9 | **Bonus** Load test results | `tests/load/` | ☐ |
+| 4.1 | Docker Compose (api + graph + TS + simulator + engine) | `deploy/docker-compose.yml` (7 services, healthchecks, ordered deps) | ✅ |
+| 4.2 | Environment configs (dev/prod) | `deploy/.env.example` | ✅ |
+| 4.3 | Health check endpoints | `/health`, `/ready` + Docker HEALTHCHECKs | ✅ |
+| 4.4 | Structured logging | `afdd_shared/logging_setup.py` (JSON) across services | ✅ |
+| 4.5 | OpenAPI/Swagger UI | FastAPI `/docs` | ✅ |
+| 4.6 | README for one-command startup | `README.md` | ✅ |
+| 4.7 | **Bonus** Kubernetes manifests | `deploy/k8s/manifests.yaml` | ✅ |
+| 4.8 | **Bonus** Prometheus metrics endpoint | `/metrics` + `deploy/prometheus/prometheus.yml` | ✅ |
+| 4.9 | **Bonus** Load test results | deferred (optional) | ☐ |
 
 ## Cross-cutting deliverables
 
@@ -81,9 +81,9 @@ Legend: ✅ done · 🟡 in progress · ☐ planned
 |---|---|---|---|
 | X.1 | Working prototype, one-command Docker Compose | `deploy/` | ☐ |
 | X.2 | GitHub repository (code + tests + docs) | repo | 🟡 |
-| X.3 | GitHub Wiki (architecture, flow charts, sequence diagrams, ADRs, Brick design) | `docs/wiki/` export | 🟡 |
+| X.3 | GitHub Wiki (architecture, flow charts, sequence diagrams, ADRs, Brick design) | `docs/wiki/` (Home + 4 required pages) | ✅ |
 | X.4 | Unit + integration tests, coverage | 24 unit tests passing (topology, brick, generators, ingest, 4 rule evaluators); integration suite in Phase 5 | 🟡 |
 | X.5 | CI pipeline | `.github/workflows/ci.yml` | ☐ |
 | X.6 | Design-first evidence (docs before code) | `docs/` (this phase) | ✅ |
 | X.7 | GitHub workflow (feature branches, meaningful commits, PRs) | git history | ☐ |
-| X.8 | Dashboard: modern, minimal, light/dark, mobile-responsive | `services/dashboard` | ☐ |
+| X.8 | Dashboard: modern, minimal, light/dark, mobile-responsive | `services/dashboard/index.html` (Chart.js, nginx-proxied, auto-refresh) | ✅ |

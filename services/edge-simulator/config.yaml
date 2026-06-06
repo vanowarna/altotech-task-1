@@ -10,7 +10,8 @@ backfill:
   step_seconds: 60               # one sample per device per minute
 
 # Anomalies deliberately injected so AFDD has faults to detect. Each entry binds
-# a device (by suffix match across hotels) to a fault pattern, ongoing from start.
+# a device (by suffix match across hotels) to a fault pattern. The final entry sets
+# a small random rate applied to other devices each run.
 anomalies:
   - kind: temperature_spike
     device_suffix: "hotel_a-r101-temperature"
@@ -20,5 +21,4 @@ anomalies:
     device_suffix: "hotel_b-r101-occupancy"
   - kind: energy_anomaly
     device_suffix: "hotel_c-f1-power1"
-  # Plus a small random rate applied to other devices each run.
-  random_rate: 0.01
+  - random_rate: 0.01

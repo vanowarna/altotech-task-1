@@ -1,0 +1,173 @@
+# Kubernetes manifests (BONUS) — a production-shaped starting point that mirrors the
+# docker-compose topology. Apply with:  kubectl apply -f deploy/k8s/manifests.yaml
+# Stateful databases are StatefulSets; stateless services are Deployments. Tune
+# resources/replicas per environment. Secrets here are placeholders — use a real
+# secret manager in production.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: afdd
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: afdd-secrets
+  namespace: afdd
+type: Opaque
+stringData:
+  NEO4J_PASSWORD: "altotech123"
+  TS_PASSWORD: "afdd123"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: afdd-config
+  namespace: afdd
+data:
+  NEO4J_URI: "bolt://neo4j:7687"
+  NEO4J_USER: "neo4j"
+  TS_HOST: "timescaledb"
+  TS_PORT: "5432"
+  TS_DB: "afdd"
+  TS_USER: "afdd"
+  EVAL_INTERVAL_SECONDS: "60"
+  ALERT_CHANNELS: "log"
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: neo4j
+  namespace: afdd
+spec:
+  serviceName: neo4j
+  replicas: 1
+  selector: { matchLabels: { app: neo4j } }
+  template:
+    metadata: { labels: { app: neo4j } }
+    spec:
+      containers:
+        - name: neo4j
+          image: neo4j:5-community
+          env:
+            - name: NEO4J_AUTH
+              value: "neo4j/altotech123"
+          ports: [{ containerPort: 7687 }, { containerPort: 7474 }]
+          readinessProbe:
+            httpGet: { path: /, port: 7474 }
+            initialDelaySeconds: 20
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata: { name: neo4j, namespace: afdd }
+spec:
+  selector: { app: neo4j }
+  ports: [{ name: bolt, port: 7687 }, { name: http, port: 7474 }]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: timescaledb
+  namespace: afdd
+spec:
+  serviceName: timescaledb
+  replicas: 1
+  selector: { matchLabels: { app: timescaledb } }
+  template:
+    metadata: { labels: { app: timescaledb } }
+    spec:
+      containers:
+        - name: timescaledb
+          image: timescale/timescaledb:latest-pg16
+          env:
+            - { name: POSTGRES_USER, value: "afdd" }
+            - { name: POSTGRES_DB, value: "afdd" }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: afdd-secrets, key: TS_PASSWORD } }
+          ports: [{ containerPort: 5432 }]
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "afdd"] }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata: { name: timescaledb, namespace: afdd }
+spec:
+  selector: { app: timescaledb }
+  ports: [{ port: 5432 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: afdd
+spec:
+  replicas: 2                       # stateless → scale horizontally
+  selector: { matchLabels: { app: api } }
+  template:
+    metadata: { labels: { app: api } }
+    spec:
+      containers:
+        - name: api
+          image: afdd/api:latest    # build & push from services/api/Dockerfile
+          envFrom:
+            - configMapRef: { name: afdd-config }
+            - secretRef: { name: afdd-secrets }
+          ports: [{ containerPort: 8000 }]
+          readinessProbe:
+            httpGet: { path: /ready, port: 8000 }
+            initialDelaySeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata: { name: api, namespace: afdd }
+spec:
+  selector: { app: api }
+  ports: [{ port: 8000 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: afdd-engine
+  namespace: afdd
+spec:
+  replicas: 1                       # scale via property sharding (see scalability doc)
+  selector: { matchLabels: { app: afdd-engine } }
+  template:
+    metadata: { labels: { app: afdd-engine } }
+    spec:
+      containers:
+        - name: afdd-engine
+          image: afdd/engine:latest
+          envFrom:
+            - configMapRef: { name: afdd-config }
+            - secretRef: { name: afdd-secrets }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dashboard
+  namespace: afdd
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: dashboard } }
+  template:
+    metadata: { labels: { app: dashboard } }
+    spec:
+      containers:
+        - name: dashboard
+          image: afdd/dashboard:latest
+          ports: [{ containerPort: 80 }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: dashboard, namespace: afdd }
+spec:
+  type: LoadBalancer
+  selector: { app: dashboard }
+  ports: [{ port: 80 }]

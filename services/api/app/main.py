@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 
 from afdd_shared.logging_setup import setup_logging
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from . import deps
 from .routers import dashboard, devices, faults, health, ingest, query, rules
@@ -30,6 +31,12 @@ app = FastAPI(
     ),
     version="0.1.0",
     lifespan=lifespan,
+)
+
+# Permissive CORS for the POC (dashboard may call the API directly).
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
 )
 
 app.include_router(health.router)
