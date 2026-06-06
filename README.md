@@ -27,8 +27,20 @@ That brings up the whole stack and **seeds 3 hotels (125 devices), default AFDD 
 | http://localhost:8000/health | Liveness · `/ready` for readiness · `/metrics` for Prometheus |
 | http://localhost:7474 | Neo4j Browser (explore the Brick graph; user `neo4j` / pass from `.env`) |
 
-Within a minute the dashboard shows active faults (a temperature excursion, a CO₂
-sensor flatline, and — after a few minutes of live data — an energy anomaly).
+Within a minute the dashboard shows active faults across the 3 synthetic hotels.
+
+**Live building map (3D).** The dashboard centerpiece is a Three.js view of all
+properties — each room is a cell colored by its worst active fault (green→red), so you
+literally see which rooms need attention. KPIs show device counts, healthy vs faulted,
+and live ingest rate; the activity log (scrollable) streams recent fault events.
+
+**Real sensor data.** Alongside the synthetic simulator, a **CSV replayer** streams
+AltoTech's provided `00-documents/iot_sample_data` recordings into a dedicated property
+("Hotel D — Live Data") so the demo runs on genuine sensor data too.
+
+**Demo speed.** Defaults use a fast preset (`EVAL_INTERVAL_SECONDS=15`, 30-min
+backfill). Set `EVAL_INTERVAL_SECONDS=60` in `deploy/.env` for production-realistic
+timing.
 
 ---
 

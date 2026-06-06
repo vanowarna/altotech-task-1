@@ -96,8 +96,11 @@ def push_batch(client: httpx.Client, base_url: str, readings: list[dict]) -> Non
 def run(cfg: dict, topology_path: str, base_url: str) -> None:
     seed = int(cfg.get("seed", 42))
     props = load_topology(topology_path)
+    exclude = set(cfg.get("exclude_properties", []))
+    if exclude:
+        props = [p for p in props if p.id not in exclude]
     devices = all_devices(props)
-    log.info("topology loaded", extra=topology_summary(props))
+    log.info("topology loaded", extra={**topology_summary(props), "excluded": list(exclude)})
     anomalies = build_anomaly_map(cfg, devices, seed)
     log.info("anomalies bound", extra={"count": len(anomalies),
                                        "devices": list(anomalies.keys())[:10]})

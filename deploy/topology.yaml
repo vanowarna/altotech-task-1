@@ -1,4 +1,4 @@
-# Building topology — the single declarative source for the 3 hotels.
+# Building topology — the single declarative source for the hotels.
 # Consumed by the graph loader (graph/load_topology.py) and the edge simulator.
 # Fully configurable: add hotels, change rooms/floors/sensors/power meters.
 
@@ -31,4 +31,18 @@ hotels:
     sensors: [temperature, humidity, co2, occupancy]
     power_meters_per_floor: 1
     config:
+      operating_hours: { start: "06:00", end: "22:00" }
+
+  # Fed by the CSV replayer (real AltoTech sample data), not the synthetic simulator.
+  # 3 rooms (101-103) match the IAQ/presence CSVs; 6 floor power meters match the
+  # power-meter CSV. The synthetic simulator excludes this property.
+  - id: hotel_live
+    name: "Hotel D — Live Data"
+    timezone: "Asia/Bangkok"
+    floors: 1
+    rooms: 3
+    sensors: [temperature, humidity, co2, occupancy]
+    power_meters_per_floor: 6
+    config:
+      source: "csv_replay"
       operating_hours: { start: "06:00", end: "22:00" }

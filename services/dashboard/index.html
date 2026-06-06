@@ -1,239 +1,237 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AltoTech AFDD · Fault Console</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <style>
-    :root {
-      --bg: #f6f7f9; --panel: #ffffff; --text: #1a1d24; --muted: #6b7280;
-      --border: #e5e7eb; --accent: #4f46e5; --accent-soft: #eef2ff;
-      --crit: #dc2626; --warn: #f59e0b; --minor: #3b82f6; --info: #9ca3af; --ok: #10b981;
-      --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+    :root{
+      --bg:#0f1115; --panel:#171a21; --panel2:#1d212b; --text:#e6e8ec; --muted:#9aa1ad;
+      --border:#272b34; --accent:#6366f1;
+      --crit:#ef4444; --warn:#f59e0b; --minor:#3b82f6; --info:#9aa1ad; --ok:#22c55e;
     }
-    [data-theme="dark"] {
-      --bg: #0f1115; --panel: #181b22; --text: #e6e8ec; --muted: #9aa1ad;
-      --border: #272b34; --accent: #818cf8; --accent-soft: #1e2230;
-      --shadow: 0 1px 3px rgba(0,0,0,.4);
+    [data-theme="light"]{
+      --bg:#f3f4f6; --panel:#ffffff; --panel2:#f7f8fa; --text:#15181e; --muted:#6b7280;
+      --border:#e5e7eb; --accent:#4f46e5;
     }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0; background: var(--bg); color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      transition: background .2s, color .2s;
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0}
+    body{background:var(--bg);color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      overflow:hidden}
+    #app{display:flex;flex-direction:column;height:100vh;padding:12px;gap:12px}
+    .row{display:flex;align-items:center;gap:12px}
+    header .brand{font-weight:700;font-size:15px;letter-spacing:-.01em}
+    header .brand .mut{color:var(--muted);font-weight:500}
+    .spacer{flex:1}
+    .dot{width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--ok)}
+    button{font:inherit;cursor:pointer;border:1px solid var(--border);background:var(--panel);
+      color:var(--text);border-radius:8px;padding:6px 11px}
+    button:hover{border-color:var(--accent)}
+    .status{font-size:12.5px;color:var(--muted)}
+    .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+    .kpi{background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:11px 13px}
+    .kpi .l{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+    .kpi .v{font-size:22px;font-weight:700;margin-top:3px;line-height:1.1}
+    .main{flex:1;display:grid;grid-template-columns:1.55fr 1fr;gap:12px;min-height:0}
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:13px;
+      display:flex;flex-direction:column;min-height:0}
+    .card h3{margin:0;padding:11px 14px;font-size:13px;border-bottom:1px solid var(--border);
+      display:flex;align-items:center;gap:8px}
+    .card h3 .spacer{flex:1}
+    .viz{position:relative;flex:1;min-height:0}
+    #scene{width:100%;height:100%;display:block;border-radius:0 0 13px 13px}
+    .legend{position:absolute;left:12px;bottom:12px;display:flex;gap:12px;flex-wrap:wrap;
+      background:rgba(0,0,0,.35);padding:7px 10px;border-radius:9px;font-size:11.5px}
+    [data-theme="light"] .legend{background:rgba(255,255,255,.7)}
+    .legend span{display:inline-flex;align-items:center;gap:5px;color:var(--text)}
+    .legend i{width:9px;height:9px;border-radius:2px;display:inline-block}
+    .right{display:flex;flex-direction:column;gap:12px;min-height:0}
+    .charts{flex:0 0 auto}
+    .charts .body{display:flex;gap:10px;padding:10px 12px;align-items:center}
+    .chartbox{width:130px;height:130px;flex:0 0 auto}
+    .sevlist{flex:1;display:flex;flex-direction:column;gap:6px}
+    .sevrow{display:flex;align-items:center;gap:8px;font-size:12.5px}
+    .sevrow .bar{flex:1;height:7px;border-radius:5px;background:var(--panel2);overflow:hidden}
+    .sevrow .bar>i{display:block;height:100%}
+    .sevrow .n{width:26px;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+    .log{flex:1;min-height:0}
+    .logbody{flex:1;overflow-y:auto;padding:6px 8px;min-height:0}
+    .item{display:grid;grid-template-columns:auto 1fr auto;gap:9px;align-items:center;
+      padding:8px 8px;border-radius:9px}
+    .item:hover{background:var(--panel2)}
+    .item+.item{border-top:1px solid var(--border)}
+    .badge{padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap}
+    .b-critical{background:rgba(239,68,68,.16);color:var(--crit)}
+    .b-warning{background:rgba(245,158,11,.18);color:var(--warn)}
+    .b-minor{background:rgba(59,130,246,.16);color:var(--minor)}
+    .b-info{background:rgba(154,161,173,.2);color:var(--muted)}
+    .item .ttl{font-size:13px}
+    .item .sub{font-size:11.5px;color:var(--muted)}
+    .item .act{display:flex;gap:4px}
+    .item .act button{padding:3px 8px;font-size:11.5px}
+    .empty{color:var(--muted);text-align:center;padding:24px;font-size:13px}
+    .st{font-weight:600}.st-active{color:var(--crit)}.st-acknowledged{color:var(--warn)}.st-resolved{color:var(--ok)}
+    @media(max-width:860px){
+      body{overflow:auto}#app{height:auto}
+      .kpis{grid-template-columns:repeat(3,1fr)}
+      .main{grid-template-columns:1fr}
+      .viz{height:300px;flex:none}
     }
-    header {
-      display: flex; align-items: center; gap: 16px; padding: 16px 24px;
-      background: var(--panel); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10;
-    }
-    .brand { font-weight: 700; font-size: 1.05rem; letter-spacing: -.01em; }
-    .brand small { color: var(--muted); font-weight: 500; }
-    .spacer { flex: 1; }
-    button {
-      font: inherit; cursor: pointer; border: 1px solid var(--border); background: var(--panel);
-      color: var(--text); border-radius: 8px; padding: 7px 12px; transition: background .15s, border .15s;
-    }
-    button:hover { border-color: var(--accent); }
-    .pill { display: inline-flex; align-items: center; gap: 6px; }
-    main { padding: 24px; max-width: 1200px; margin: 0 auto; }
-    .grid { display: grid; gap: 16px; }
-    .kpis { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 16px; }
-    .card {
-      background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
-      padding: 18px; box-shadow: var(--shadow);
-    }
-    .kpi .label { color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; }
-    .kpi .value { font-size: 2rem; font-weight: 700; margin-top: 4px; }
-    .charts { grid-template-columns: 1fr 1fr; margin-bottom: 16px; }
-    @media (max-width: 760px) { .charts { grid-template-columns: 1fr; } }
-    .card h3 { margin: 0 0 12px; font-size: .95rem; }
-    .filters { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; align-items: center; }
-    select {
-      font: inherit; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border);
-      background: var(--panel); color: var(--text);
-    }
-    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
-    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
-    th { color: var(--muted); font-weight: 600; font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; }
-    tr:last-child td { border-bottom: none; }
-    .table-wrap { overflow-x: auto; }
-    .badge { padding: 3px 9px; border-radius: 999px; font-size: .74rem; font-weight: 600; white-space: nowrap; }
-    .sev-critical { background: color-mix(in srgb, var(--crit) 16%, transparent); color: var(--crit); }
-    .sev-warning  { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
-    .sev-minor    { background: color-mix(in srgb, var(--minor) 16%, transparent); color: var(--minor); }
-    .sev-info     { background: color-mix(in srgb, var(--info) 20%, transparent); color: var(--muted); }
-    .st-active { color: var(--crit); font-weight: 600; }
-    .st-acknowledged { color: var(--warn); font-weight: 600; }
-    .st-resolved { color: var(--ok); font-weight: 600; }
-    .act { font-size: .8rem; padding: 4px 9px; margin-right: 4px; }
-    .muted { color: var(--muted); }
-    .empty { text-align: center; color: var(--muted); padding: 32px; }
-    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-    #status { font-size: .8rem; color: var(--muted); }
   </style>
 </head>
 <body>
-  <header>
-    <div class="brand">AltoTech <span class="muted">AFDD</span> <small>· Fault Console</small></div>
-    <div class="spacer"></div>
-    <span id="status">connecting…</span>
-    <button id="refresh" class="pill">↻ Refresh</button>
-    <button id="theme" class="pill">🌙</button>
-  </header>
+  <div id="app">
+    <header class="row">
+      <div class="brand">AltoTech <span class="mut">AFDD</span> · Fault Console</div>
+      <div class="spacer"></div>
+      <span class="status" id="status"><span class="dot"></span> connecting…</span>
+      <button id="refresh">↻</button>
+      <button id="theme">☀️</button>
+    </header>
 
-  <main>
-    <div class="grid kpis" id="kpis"></div>
+    <div class="kpis" id="kpis"></div>
 
-    <div class="grid charts">
-      <div class="card"><h3>Active faults by severity</h3><canvas id="sevChart" height="160"></canvas></div>
-      <div class="card"><h3>Active faults by property</h3><canvas id="propChart" height="160"></canvas></div>
-    </div>
-
-    <div class="card">
-      <h3>Faults</h3>
-      <div class="filters">
-        <select id="f-property"><option value="">All properties</option></select>
-        <select id="f-severity">
-          <option value="">All severities</option>
-          <option>critical</option><option>warning</option><option>minor</option><option>info</option>
-        </select>
-        <select id="f-status">
-          <option value="">All statuses</option>
-          <option>active</option><option>acknowledged</option><option>resolved</option>
-        </select>
-        <span class="muted" id="count"></span>
+    <div class="main">
+      <div class="card">
+        <h3>Live building map <span class="spacer"></span><span class="status">rooms colored by worst active fault</span></h3>
+        <div class="viz">
+          <canvas id="scene"></canvas>
+          <div class="legend">
+            <span><i style="background:#22c55e"></i>healthy</span>
+            <span><i style="background:#3b82f6"></i>minor</span>
+            <span><i style="background:#f59e0b"></i>warning</span>
+            <span><i style="background:#ef4444"></i>critical</span>
+          </div>
+        </div>
       </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr>
-            <th>Severity</th><th>Rule</th><th>Property</th><th>Location</th>
-            <th>Device</th><th>Status</th><th>Detected</th><th>Actions</th>
-          </tr></thead>
-          <tbody id="faults"></tbody>
-        </table>
+
+      <div class="right">
+        <div class="card charts">
+          <h3>Active faults by severity</h3>
+          <div class="body">
+            <div class="chartbox"><canvas id="sevChart"></canvas></div>
+            <div class="sevlist" id="sevlist"></div>
+          </div>
+        </div>
+        <div class="card log">
+          <h3>Activity <span class="spacer"></span><span class="status" id="logcount"></span></h3>
+          <div class="logbody" id="log"></div>
+        </div>
       </div>
     </div>
-  </main>
+  </div>
 
   <script>
-    // Same-origin: nginx proxies /api to the FastAPI service.
     const API = (location.origin && !location.origin.startsWith("file")) ? "" : "http://localhost:8000";
-    const SEV_COLORS = { critical: "#dc2626", warning: "#f59e0b", minor: "#3b82f6", info: "#9ca3af" };
-    let sevChart, propChart;
+    const SEV = {critical:"#ef4444",warning:"#f59e0b",minor:"#3b82f6",info:"#9aa1ad"};
+    const SEV3D = {critical:0xef4444,warning:0xf59e0b,minor:0x3b82f6,info:0x9aa1ad,healthy:0x22c55e};
+    const $ = id => document.getElementById(id);
+    const fmtAgo = s => { if(!s) return "—"; const d=Math.max(0,Math.floor(Date.now()/1000-s));
+      if(d<60) return d+"s ago"; if(d<3600) return Math.floor(d/60)+"m ago"; return Math.floor(d/3600)+"h ago"; };
+    async function api(p){ const r=await fetch(API+p); if(!r.ok) throw new Error(r.status); return r.json(); }
+    function setStatus(t,ok=true){ $("status").innerHTML=`<span class="dot" style="background:${ok?'var(--ok)':'var(--crit)'}"></span> ${t}`; }
 
-    const $ = (id) => document.getElementById(id);
-    const fmtTime = (s) => s ? new Date(s * 1000).toLocaleString() : "—";
-
-    function setStatus(text, ok = true) {
-      $("status").innerHTML = `<span class="dot" style="background:${ok ? 'var(--ok)' : 'var(--crit)'}"></span> ${text}`;
-    }
-
-    async function api(path) {
-      const r = await fetch(API + path);
-      if (!r.ok) throw new Error(r.status + " " + path);
-      return r.json();
-    }
-
-    function kpiCard(label, value, color) {
-      return `<div class="card kpi"><div class="label">${label}</div>
-              <div class="value" style="color:${color || 'var(--text)'}">${value}</div></div>`;
-    }
-
-    async function loadSummary() {
-      const s = await api("/api/v1/dashboard/summary");
-      const sev = Object.fromEntries(s.by_severity.map(x => [x.severity, x.count]));
+    let sevChart;
+    function kpi(l,v,c){ return `<div class="kpi"><div class="l">${l}</div><div class="v" style="color:${c||'var(--text)'}">${v}</div></div>`; }
+    async function loadStatsAndSummary(){
+      const [stats, sum] = await Promise.all([api("/api/v1/dashboard/stats"), api("/api/v1/dashboard/summary")]);
       $("kpis").innerHTML = [
-        kpiCard("Active faults", s.totals.active, s.totals.active ? "var(--crit)" : "var(--ok)"),
-        kpiCard("Properties", s.totals.properties),
-        kpiCard("Critical", sev.critical || 0, "var(--crit)"),
-        kpiCard("Warning", sev.warning || 0, "var(--warn)"),
+        kpi("Active faults", sum.totals.active, sum.totals.active?"var(--crit)":"var(--ok)"),
+        kpi("Devices", stats.devices),
+        kpi("Healthy", stats.healthy_devices, "var(--ok)"),
+        kpi("Faulted", stats.faulted_devices, stats.faulted_devices?"var(--warn)":"var(--muted)"),
+        kpi("Ingest /s", stats.ingest_per_sec),
+        kpi("Properties", stats.properties),
       ].join("");
+      const sevs = sum.by_severity;
+      const total = sevs.reduce((a,b)=>a+b.count,0) || 1;
+      $("sevlist").innerHTML = ["critical","warning","minor","info"].map(s=>{
+        const c=(sevs.find(x=>x.severity===s)||{}).count||0;
+        return `<div class="sevrow"><span class="badge b-${s}">${s}</span>
+          <span class="bar"><i style="width:${Math.round(c/total*100)}%;background:${SEV[s]}"></i></span>
+          <span class="n">${c}</span></div>`;
+      }).join("");
+      const labels=sevs.map(x=>x.severity), data=sevs.map(x=>x.count), colors=labels.map(l=>SEV[l]||"#9aa1ad");
+      const cfg={type:"doughnut",data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0}]},
+        options:{plugins:{legend:{display:false}},cutout:"66%",responsive:true,maintainAspectRatio:false}};
+      if(sevChart){sevChart.data=cfg.data;sevChart.update();} else sevChart=new Chart($("sevChart"),cfg);
+    }
 
-      // property filter options
-      const psel = $("f-property");
-      if (psel.options.length <= 1) {
-        s.by_property.forEach(p => {
-          const o = document.createElement("option"); o.value = p.property_id;
-          o.textContent = p.name || p.property_id; psel.appendChild(o);
+    async function loadLog(){
+      const faults = await api("/api/v1/faults");
+      $("logcount").textContent = `${faults.length} faults`;
+      const box=$("log");
+      if(!faults.length){ box.innerHTML=`<div class="empty">No active faults — all systems nominal 🎉</div>`; return; }
+      box.innerHTML = faults.slice(0,40).map(f=>`
+        <div class="item">
+          <span class="badge b-${f.severity}">${f.severity}</span>
+          <div>
+            <div class="ttl">${f.rule||"Fault"} · <span class="st st-${f.status}">${f.status}</span></div>
+            <div class="sub">${f.property_id||""} · ${f.location||""} · ${f.device_id||""} · ${fmtAgo(f.detected_at)}</div>
+          </div>
+          <div class="act">${f.status!=="resolved"
+            ? `<button onclick="act('${f.id}','ack')">Ack</button><button onclick="act('${f.id}','resolve')">Resolve</button>`
+            : ""}</div>
+        </div>`).join("");
+    }
+    async function act(id,a){ try{ await fetch(API+`/api/v1/faults/${id}/${a}`,{method:"POST"}); refresh(); }catch(e){} }
+
+    let renderer,scene,camera,group,roomMeshes={},built=false;
+    function initThree(){
+      const cv=$("scene"); renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
+      scene=new THREE.Scene();
+      camera=new THREE.PerspectiveCamera(45,1,0.1,1000);
+      camera.position.set(0,14,30); camera.lookAt(0,4,0);
+      scene.add(new THREE.AmbientLight(0xffffff,0.75));
+      const dl=new THREE.DirectionalLight(0xffffff,0.7); dl.position.set(10,20,15); scene.add(dl);
+      group=new THREE.Group(); scene.add(group);
+      resize(); window.addEventListener("resize",resize); animate();
+    }
+    function resize(){ const v=$("scene").parentElement; const w=v.clientWidth,h=v.clientHeight;
+      if(!w||!h) return; renderer.setSize(w,h,false); renderer.setPixelRatio(Math.min(2,devicePixelRatio));
+      camera.aspect=w/h; camera.updateProjectionMatrix(); }
+    function animate(){ requestAnimationFrame(animate); if(group) group.rotation.y+=0.0025; renderer.render(scene,camera); }
+    function colorFor(room){ return new THREE.Color(room.active_faults>0 ? (SEV3D[room.worst_severity]||SEV3D.warning) : SEV3D.healthy); }
+    function buildBuildings(topo){
+      while(group.children.length) group.remove(group.children[0]); roomMeshes={};
+      const props=topo.properties; const span=10, gap=2.2;
+      const totalW=(props.length-1)*(span*0.5+gap);
+      props.forEach((p,pi)=>{
+        const px=pi*(span*0.5+gap)-totalW/2;
+        const floors={}; p.rooms.filter(r=>r.type!=="electrical_zone").forEach(r=>{(floors[r.floor]=floors[r.floor]||[]).push(r);});
+        const floorKeys=Object.keys(floors).map(Number).sort((a,b)=>a-b);
+        const cols=4, cell=1.15, fh=1.4;
+        floorKeys.forEach((fk,fi)=>{
+          floors[fk].forEach((room,ri)=>{
+            const cx=(ri%cols)*cell - (cols-1)*cell/2;
+            const cz=Math.floor(ri/cols)*cell - cell;
+            const geo=new THREE.BoxGeometry(cell*0.82,fh*0.7,cell*0.82);
+            const mat=new THREE.MeshStandardMaterial({color:colorFor(room),roughness:0.6,metalness:0.05});
+            const m=new THREE.Mesh(geo,mat); m.position.set(px+cx, fi*fh+1, cz); m.userData={room};
+            group.add(m); roomMeshes[room.id]=m;
+          });
         });
-      }
-      drawSeverity(s.by_severity);
-      drawProperty(s.by_property);
+        const base=new THREE.Mesh(new THREE.BoxGeometry(span*0.42,0.3,span*0.42),
+          new THREE.MeshStandardMaterial({color:0x2a2f3a,roughness:0.9}));
+        base.position.set(px,0.15,-0.6); group.add(base);
+      });
+      built=true;
     }
+    function updateColors(topo){ topo.properties.forEach(p=>p.rooms.forEach(r=>{const m=roomMeshes[r.id]; if(m) m.material.color=colorFor(r);})); }
+    async function loadTopo(){ const topo=await api("/api/v1/dashboard/topology"); if(!built) buildBuildings(topo); else updateColors(topo); }
 
-    function drawSeverity(data) {
-      const labels = data.map(d => d.severity), values = data.map(d => d.count);
-      const colors = labels.map(l => SEV_COLORS[l] || "#9ca3af");
-      const cfg = { type: "doughnut",
-        data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0 }] },
-        options: { plugins: { legend: { position: "bottom" } }, cutout: "62%" } };
-      if (sevChart) { sevChart.data = cfg.data; sevChart.update(); }
-      else sevChart = new Chart($("sevChart"), cfg);
-      if (!values.length) $("sevChart").parentElement.querySelector("canvas").style.opacity = .3;
+    async function refresh(){
+      try{ setStatus("live"); await Promise.all([loadStatsAndSummary(), loadLog(), loadTopo()]); }
+      catch(e){ setStatus("API unreachable", false); }
     }
-
-    function drawProperty(data) {
-      const labels = data.map(d => d.name || d.property_id), values = data.map(d => d.active_faults);
-      const cfg = { type: "bar",
-        data: { labels, datasets: [{ data: values, backgroundColor: "#4f46e5", borderRadius: 6 }] },
-        options: { plugins: { legend: { display: false } },
-                   scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } } };
-      if (propChart) { propChart.data = cfg.data; propChart.update(); }
-      else propChart = new Chart($("propChart"), cfg);
-    }
-
-    async function loadFaults() {
-      const q = new URLSearchParams();
-      if ($("f-property").value) q.set("property", $("f-property").value);
-      if ($("f-severity").value) q.set("severity", $("f-severity").value);
-      if ($("f-status").value) q.set("status", $("f-status").value);
-      const faults = await api("/api/v1/faults?" + q.toString());
-      $("count").textContent = `${faults.length} shown`;
-      const tb = $("faults");
-      if (!faults.length) { tb.innerHTML = `<tr><td colspan="8" class="empty">No faults 🎉</td></tr>`; return; }
-      tb.innerHTML = faults.map(f => `
-        <tr>
-          <td><span class="badge sev-${f.severity}">${f.severity}</span></td>
-          <td>${f.rule || "—"}</td>
-          <td>${f.property_id || "—"}</td>
-          <td>${f.location || "—"}</td>
-          <td class="muted">${f.device_id || "—"}</td>
-          <td><span class="st-${f.status}">${f.status}</span></td>
-          <td class="muted">${fmtTime(f.detected_at)}</td>
-          <td>
-            ${f.status !== "resolved" ? `<button class="act" onclick="act('${f.id}','ack')">Ack</button>
-            <button class="act" onclick="act('${f.id}','resolve')">Resolve</button>` : "—"}
-          </td>
-        </tr>`).join("");
-    }
-
-    async function act(id, action) {
-      try { await fetch(API + `/api/v1/faults/${id}/${action}`, { method: "POST" }); refresh(); }
-      catch (e) { alert("Action failed: " + e.message); }
-    }
-
-    async function refresh() {
-      try { setStatus("live"); await loadSummary(); await loadFaults(); }
-      catch (e) { setStatus("API unreachable", false); }
-    }
-
-    function toggleTheme() {
-      const html = document.documentElement;
-      const next = html.dataset.theme === "dark" ? "light" : "dark";
-      html.dataset.theme = next;
-      $("theme").textContent = next === "dark" ? "☀️" : "🌙";
-      try { localStorage.setItem("afdd-theme", next); } catch (e) {}
-    }
-
-    // init
-    try { const t = localStorage.getItem("afdd-theme"); if (t) { document.documentElement.dataset.theme = t;
-      $("theme").textContent = t === "dark" ? "☀️" : "🌙"; } } catch (e) {}
-    $("theme").onclick = toggleTheme;
-    $("refresh").onclick = refresh;
-    ["f-property", "f-severity", "f-status"].forEach(id => $(id).onchange = loadFaults);
-    refresh();
-    setInterval(refresh, 15000); // auto-refresh
+    function toggleTheme(){ const h=document.documentElement; const n=h.dataset.theme==="dark"?"light":"dark";
+      h.dataset.theme=n; $("theme").textContent=n==="dark"?"☀️":"🌙"; try{localStorage.setItem("afdd-theme",n);}catch(e){} }
+    try{const t=localStorage.getItem("afdd-theme"); if(t){document.documentElement.dataset.theme=t; $("theme").textContent=t==="dark"?"☀️":"🌙";}}catch(e){}
+    $("theme").onclick=toggleTheme; $("refresh").onclick=refresh;
+    initThree(); refresh(); setInterval(refresh,10000);
   </script>
 </body>
 </html>

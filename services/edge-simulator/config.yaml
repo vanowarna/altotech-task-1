@@ -1,24 +1,30 @@
-# Edge simulator configuration.
-push_interval_seconds: 30        # how often each sensor pushes (assessment: 30-60s)
-batch: true                      # push all devices in one batch request per tick
-seed: 42                         # deterministic runs for reproducible demos/tests
+# Edge simulator configuration (fast demo preset).
+push_interval_seconds: 15        # faster cadence for the demo
+batch: true
+seed: 42
 
-# Backfill seeds historical readings on startup so the AFDD engine has data to
-# evaluate immediately (great for demos). Set minutes: 0 to disable.
+# hotel_live is fed by the CSV replayer (real data), so the synthetic simulator skips it.
+exclude_properties: [hotel_live]
+
+# Shorter backfill so the stack is ready quickly but the engine still has history.
 backfill:
-  minutes: 120                   # seed the last 2 hours
-  step_seconds: 60               # one sample per device per minute
+  minutes: 30
+  step_seconds: 60
 
-# Anomalies deliberately injected so AFDD has faults to detect. Each entry binds
-# a device (by suffix match across hotels) to a fault pattern. The final entry sets
-# a small random rate applied to other devices each run.
+# More/varied injected anomalies so the board and 3D heatmap look alive.
 anomalies:
   - kind: temperature_spike
     device_suffix: "hotel_a-r101-temperature"
+  - kind: temperature_spike
+    device_suffix: "hotel_c-r301-temperature"
   - kind: flatline
     device_suffix: "hotel_a-r102-co2"
+  - kind: flatline
+    device_suffix: "hotel_b-r201-temperature"
   - kind: schedule_violation
     device_suffix: "hotel_b-r101-occupancy"
   - kind: energy_anomaly
     device_suffix: "hotel_c-f1-power1"
-  - random_rate: 0.01
+  - kind: energy_anomaly
+    device_suffix: "hotel_b-f1-power1"
+  - random_rate: 0.03
