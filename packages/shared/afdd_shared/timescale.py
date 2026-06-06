@@ -34,12 +34,8 @@ class TimescaleClient:
         rows = [
             (
                 datetime.fromtimestamp(r.timestamp, tz=timezone.utc),
-                r.device_id,
-                r.property_id,
-                r.brick_class,
-                r.datapoint,
-                r.value_num,
-                r.value_text,
+                r.device_id, r.property_id, r.brick_class, r.datapoint,
+                r.value_num, r.value_text,
             )
             for r in readings
         ]
@@ -66,29 +62,20 @@ class TimescaleClient:
             )
         return dict(row) if row else None
 
-    async def range(
-        self, device_id: str, start: datetime, end: datetime
-    ) -> list[dict[str, Any]]:
+    async def range(self, device_id: str, start: datetime, end: datetime) -> list[dict[str, Any]]:
         assert self._pool
         async with self._pool.acquire() as con:
             rows = await con.fetch(
                 """
                 SELECT time, device_id, datapoint, value, value_text, brick_class
-                FROM readings
-                WHERE device_id = $1 AND time >= $2 AND time <= $3
+                FROM readings WHERE device_id = $1 AND time >= $2 AND time <= $3
                 ORDER BY time ASC
                 """,
-                device_id,
-                start,
-                end,
+                device_id, start, end,
             )
         return [dict(r) for r in rows]
 
-    async def baseline_avg(
-        self, device_id: str, baseline_days: int, exclude_minutes: int
-    ) -> Optional[float]:
-        """Rolling baseline average over `baseline_days`, excluding the most recent
-        `exclude_minutes` (so the current anomaly does not pollute its own baseline)."""
+    async def baseline_avg(self, device_id: str, baseline_days: int, exclude_minutes: int) -> Optional[float]:
         assert self._pool
         async with self._pool.acquire() as con:
             val = await con.fetchval(
@@ -102,8 +89,29 @@ class TimescaleClient:
             )
         return float(val) if val is not None else None
 
+    async def count_since(self, seconds: int) -> int:
+        """Count readings ingested in the last `seconds` (for live ingest rate)."""
+        assert self._pool
+        async with self._pool.acquire() as con:
+            val = await con.fetchval(
+                "SELECT count(*) FROM readings WHERE time > now() - ($1 || ' seconds')::interval",
+                str(seconds),
+            )
+        return int(val or 0)
+
+    async def latest_all(self) -> list[dict[str, Any]]:
+        """Latest reading per device (for the live hover panel)."""
+        assert self._pool
+        async with self._pool.acquire() as con:
+            rows = await con.fetch(
+                """
+                SELECT DISTINCT ON (device_id) device_id, datapoint, value, value_text, time
+                FROM readings ORDER BY device_id, time DESC
+                """
+            )
+        return [dict(r) for r in rows]
+
     async def window(self, device_id: str, minutes: int) -> list[dict[str, Any]]:
-        """Recent window used by the AFDD evaluator."""
         assert self._pool
         async with self._pool.acquire() as con:
             rows = await con.fetch(
@@ -112,7 +120,6 @@ class TimescaleClient:
                 WHERE device_id = $1 AND time >= now() - ($2 || ' minutes')::interval
                 ORDER BY time ASC
                 """,
-                device_id,
-                str(minutes),
+                device_id, str(minutes),
             )
         return [dict(r) for r in rows]

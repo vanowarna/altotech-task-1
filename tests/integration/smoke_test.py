@@ -62,9 +62,9 @@ def run() -> int:
     if not check("API ready", wait_ready()):
         return 1
 
-    # 1. Properties loaded (3 hotels)
+    # 1. Properties loaded (3 synthetic hotels + hotel_live CSV property)
     props = httpx.get(f"{BASE}/api/v1/properties").json()
-    check("3 properties loaded", len(props) == 3, f"{len(props)} found")
+    check("properties loaded (>=3)", len(props) >= 3, f"{len(props)} found")
 
     # 2. Brick-class traversal returns devices
     temps = httpx.get(f"{BASE}/api/v1/devices",

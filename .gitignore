@@ -1,0 +1,25 @@
+# Environment / secrets
+.env
+*.env.local
+
+# Personal reference docs + provided assets (given to reviewer directly, not via git)
+00-documents/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Node / build
+node_modules/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

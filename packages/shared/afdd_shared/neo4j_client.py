@@ -6,14 +6,26 @@ from typing import Any, Optional
 
 from neo4j import AsyncGraphDatabase
 
+try:
+    from neo4j.exceptions import ConfigurationError
+except ImportError:  # pragma: no cover
+    ConfigurationError = Exception
+
 from .config import Settings
 
 
 class Neo4jClient:
     def __init__(self, settings: Settings):
-        self._driver = AsyncGraphDatabase.driver(
-            settings.neo4j_uri, auth=(settings.neo4j_user, settings.neo4j_password)
-        )
+        auth = (settings.neo4j_user, settings.neo4j_password)
+        # Silence "relationship/property does not exist" notifications, which are
+        # expected before any Fault nodes are created. Falls back gracefully on
+        # older drivers that don't support the kwarg.
+        try:
+            self._driver = AsyncGraphDatabase.driver(
+                settings.neo4j_uri, auth=auth, notifications_min_severity="OFF"
+            )
+        except (TypeError, ValueError, ConfigurationError):
+            self._driver = AsyncGraphDatabase.driver(settings.neo4j_uri, auth=auth)
 
     async def close(self) -> None:
         await self._driver.close()
@@ -43,11 +55,7 @@ class Neo4jClient:
         return rows[0] if rows else None
 
     async def resolve_devices_bulk(self, device_ids: list[str]) -> dict[str, dict[str, Any]]:
-        """Resolve many devices in one round-trip (ingestion batch path).
-
-        Returns {device_id: {brick_class, location, floor, property_id, datapoint}}.
-        Devices not present in the graph are simply absent from the result.
-        """
+        """Resolve many devices in one round-trip (ingestion batch path)."""
         rows = await self.run(
             """
             UNWIND $ids AS did
