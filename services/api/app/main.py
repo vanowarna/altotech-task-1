@@ -9,7 +9,7 @@ from afdd_shared.logging_setup import setup_logging
 from fastapi import FastAPI
 
 from . import deps
-from .routers import devices, health, ingest, query
+from .routers import dashboard, devices, faults, health, ingest, query, rules
 
 setup_logging(os.environ.get("LOG_LEVEL", "INFO"))
 
@@ -24,7 +24,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="AltoTech Multi-Site AFDD API",
     description=(
-        "Brick-aware ingestion, data query, and (Phase 3) rule/fault management for the "
+        "Brick-aware ingestion, data query, and rule/fault management for the "
         "Multi-Site AFDD platform. Topology + Brick semantics live in Neo4j; high-volume "
         "readings live in TimescaleDB."
     ),
@@ -36,6 +36,9 @@ app.include_router(health.router)
 app.include_router(ingest.router)
 app.include_router(query.router)
 app.include_router(devices.router)
+app.include_router(rules.router)
+app.include_router(faults.router)
+app.include_router(dashboard.router)
 
 # Prometheus metrics at /metrics (bonus; optional dependency).
 try:

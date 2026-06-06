@@ -84,6 +84,24 @@ class TimescaleClient:
             )
         return [dict(r) for r in rows]
 
+    async def baseline_avg(
+        self, device_id: str, baseline_days: int, exclude_minutes: int
+    ) -> Optional[float]:
+        """Rolling baseline average over `baseline_days`, excluding the most recent
+        `exclude_minutes` (so the current anomaly does not pollute its own baseline)."""
+        assert self._pool
+        async with self._pool.acquire() as con:
+            val = await con.fetchval(
+                """
+                SELECT avg(value) FROM readings
+                WHERE device_id = $1
+                  AND time >= now() - ($2 || ' days')::interval
+                  AND time <  now() - ($3 || ' minutes')::interval
+                """,
+                device_id, str(baseline_days), str(exclude_minutes),
+            )
+        return float(val) if val is not None else None
+
     async def window(self, device_id: str, minutes: int) -> list[dict[str, Any]]:
         """Recent window used by the AFDD evaluator."""
         assert self._pool

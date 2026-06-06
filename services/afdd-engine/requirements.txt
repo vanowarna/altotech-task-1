@@ -1,0 +1,5 @@
+apscheduler>=3.10
+neo4j>=5.14
+asyncpg>=0.29
+httpx>=0.26
+pyyaml>=6.0

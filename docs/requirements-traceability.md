@@ -41,25 +41,25 @@ Legend: ✅ done · 🟡 in progress · ☐ planned
 
 | # | Requirement | Where | Status |
 |---|---|---|---|
-| 3.1 | Rule Scheduler (configurable interval) | `services/afdd-engine` scheduler, ADR-0004 | ☐ |
-| 3.2 | Condition Evaluator (graph-resolve targets, time-windowed queries) | engine evaluator | ☐ |
-| 3.3 | Fault Manager (create/update/resolve, prevent duplicates) | engine fault_manager | ☐ |
-| 3.4 | Alert Dispatcher (webhook/log/queue) | engine dispatcher, ADR-0003 | ☐ |
-| 3.5 | Implement 3–4 rules: temp excursion, flatline, schedule violation, energy anomaly | engine `rules/` | ☐ |
-| 3.6 | Fault record links rule+device (edges), severity, status, detected_at, context | Fault node model | ✅ (design) |
-| 3.7 | Prevent duplicate faults (same device+rule) | fault_manager dedup | ☐ |
-| 3.8 | Structured logging of fault events | engine logging | ☐ |
-| 3.9 | Fault lifecycle: detected→active→acknowledged→resolved | data-flow.md §3 | ✅ (design) |
-| 3.10 | Rules configurable, stored as graph nodes (+property_overrides) | Rule node, brick-model.md | ✅ (design) |
-| 3.11 | API: Rule management (CRUD, enable/disable per property) | `services/api` rules router | ☐ |
-| 3.12 | API: Fault queries (list active, filter by property/severity/status, details+context) | faults router | ☐ |
-| 3.13 | API: Fault actions (ack, resolve, notes) | faults router | ☐ |
-| 3.14 | API: Dashboard data (counts by property, severity distribution, recent) | dashboard router | ☐ |
-| 3.15 | Scalability doc (100+ sites, partitioning, query perf) | `docs/architecture/scalability.md` | ☐ |
-| 3.16 | New rule types without code changes (DSL/plugin) | evaluator registry + doc | ☐ |
-| 3.17 | Cross-site pattern detection (aggregated graph analytics) | scalability.md | ☐ |
-| 3.18 | AI-ready: export graph/data/configs for AI; format for AI rule suggestions; cross-site learnings | `docs/architecture/ai-ready.md` | ☐ |
-| 3.19 | **Bonus** Claude Code SKILL.md (Brick patterns, queries, rule config) | `skills/SKILL.md` | ☐ |
+| 3.1 | Rule Scheduler (configurable interval) | `afdd-engine/app/main.py` (APScheduler, `EVAL_INTERVAL_SECONDS`) | ✅ |
+| 3.2 | Condition Evaluator (graph-resolve targets, time-windowed queries) | `afdd-engine/app/evaluator.py` | ✅ |
+| 3.3 | Fault Manager (create/update/resolve, prevent duplicates) | `afdd-engine/app/fault_manager.py` | ✅ |
+| 3.4 | Alert Dispatcher (webhook/log/queue) | `afdd-engine/app/dispatcher.py` (Log+Webhook adapters) | ✅ |
+| 3.5 | Implement 3–4 rules: temp excursion, flatline, schedule violation, energy anomaly | `afdd-engine/app/rules/` (4 rules, 9 unit tests) | ✅ |
+| 3.6 | Fault record links rule+device (edges), severity, status, detected_at, context | `fault_manager.open_fault` (detectedOn/raisedBy edges) | ✅ |
+| 3.7 | Prevent duplicate faults (same device+rule) | `fault_manager` `WHERE NOT EXISTS` dedup | ✅ |
+| 3.8 | Structured logging of fault events | JSON logging in fault_manager + dispatcher | ✅ |
+| 3.9 | Fault lifecycle: detected→active→acknowledged→resolved | fault_manager + faults API (ack/resolve) | ✅ |
+| 3.10 | Rules configurable, stored as graph nodes (+property_overrides) | `seed.py`, `rules.py`, `_merge_params` overrides | ✅ |
+| 3.11 | API: Rule management (CRUD, enable/disable per property) | `services/api/app/routers/rules.py` | ✅ |
+| 3.12 | API: Fault queries (list active, filter by property/severity/status, details+context) | `routers/faults.py` | ✅ |
+| 3.13 | API: Fault actions (ack, resolve, notes) | `routers/faults.py` | ✅ |
+| 3.14 | API: Dashboard data (counts by property, severity distribution, recent) | `routers/dashboard.py` | ✅ |
+| 3.15 | Scalability doc (100+ sites, partitioning, query perf) | `docs/architecture/scalability.md` | ✅ |
+| 3.16 | New rule types without code changes (DSL/plugin) | evaluator `@register` registry + scalability.md §2 | ✅ |
+| 3.17 | Cross-site pattern detection (aggregated graph analytics) | scalability.md §3 | ✅ |
+| 3.18 | AI-ready: export graph/data/configs for AI; format for AI rule suggestions; cross-site learnings | `docs/architecture/ai-ready.md` | ✅ |
+| 3.19 | **Bonus** Claude Code SKILL.md (Brick patterns, queries, rule config) | `skills/SKILL.md` | ✅ |
 
 ## Task 4 — Deployment & Documentation (15%)
 
@@ -82,7 +82,7 @@ Legend: ✅ done · 🟡 in progress · ☐ planned
 | X.1 | Working prototype, one-command Docker Compose | `deploy/` | ☐ |
 | X.2 | GitHub repository (code + tests + docs) | repo | 🟡 |
 | X.3 | GitHub Wiki (architecture, flow charts, sequence diagrams, ADRs, Brick design) | `docs/wiki/` export | 🟡 |
-| X.4 | Unit + integration tests, coverage | 15 unit tests passing (topology, brick, generators, ingest); integration suite in Phase 5 | 🟡 |
+| X.4 | Unit + integration tests, coverage | 24 unit tests passing (topology, brick, generators, ingest, 4 rule evaluators); integration suite in Phase 5 | 🟡 |
 | X.5 | CI pipeline | `.github/workflows/ci.yml` | ☐ |
 | X.6 | Design-first evidence (docs before code) | `docs/` (this phase) | ✅ |
 | X.7 | GitHub workflow (feature branches, meaningful commits, PRs) | git history | ☐ |

@@ -75,3 +75,44 @@ class ReadingOut(BaseModel):
     value: Optional[float] = None
     value_text: Optional[str] = None
     brick_class: Optional[str] = None
+
+
+class RuleIn(BaseModel):
+    id: Optional[str] = None
+    name: str
+    brick_class_target: str
+    condition_type: str
+    params: dict[str, Any] = {}
+    severity: str = "warning"
+    enabled: bool = True
+    property_overrides: dict[str, Any] = {}
+
+
+class RuleOut(BaseModel):
+    id: str
+    name: str
+    brick_class_target: str
+    condition_type: str
+    params: dict[str, Any] = {}
+    severity: str
+    enabled: bool
+    property_overrides: dict[str, Any] = {}
+
+
+class FaultOut(BaseModel):
+    id: str
+    severity: str
+    status: str
+    detected_at: Optional[int] = None
+    resolved_at: Optional[int] = None
+    device_id: Optional[str] = None
+    property_id: Optional[str] = None
+    location: Optional[str] = None
+    rule: Optional[str] = None
+    brick_class: Optional[str] = None
+    context: Optional[dict[str, Any]] = None
+    notes: list[str] = []
+
+
+class NoteIn(BaseModel):
+    note: str

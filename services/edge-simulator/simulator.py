@@ -29,11 +29,20 @@ log = setup_logging(os.environ.get("LOG_LEVEL", "INFO"), "simulator")
 FAR_FUTURE = 4102444800  # year 2100
 
 
-def build_anomaly_map(cfg: dict, devices, seed: int) -> dict[str, gen.Anomaly]:
+def _start_for(kind: str, now: int) -> int:
+    """Energy anomalies must be confined to recent time so they don't pollute their
+    own rolling baseline; all others are active throughout (incl. backfill) so the
+    corresponding faults surface immediately."""
+    if kind == "energy_anomaly":
+        return now - 600  # last ~10 minutes only
+    return 0
+
+
+def build_anomaly_map(cfg: dict, devices, seed: int, now: int | None = None) -> dict[str, gen.Anomaly]:
     """Bind anomalies to concrete device IDs from the simulator config."""
+    now = now if now is not None else int(time.time())
     rng = random.Random(seed)
     amap: dict[str, gen.Anomaly] = {}
-    start = 0
     for entry in cfg.get("anomalies", []):
         if not isinstance(entry, dict) or "kind" not in entry:
             continue
@@ -42,7 +51,8 @@ def build_anomaly_map(cfg: dict, devices, seed: int) -> dict[str, gen.Anomaly]:
             continue
         for d in devices:
             if d.id.endswith(suffix) or d.id == suffix:
-                amap[d.id] = gen.Anomaly(kind=entry["kind"], start_ts=start, end_ts=FAR_FUTURE)
+                amap[d.id] = gen.Anomaly(kind=entry["kind"],
+                                         start_ts=_start_for(entry["kind"], now), end_ts=FAR_FUTURE)
     # Random low-rate anomalies on other devices.
     random_rate = 0.0
     for entry in cfg.get("anomalies", []):
@@ -59,7 +69,7 @@ def build_anomaly_map(cfg: dict, devices, seed: int) -> dict[str, gen.Anomaly]:
             }
             kind = kind_by_dp.get(d.datapoint, "flatline")
             if rng.random() < random_rate:
-                amap[d.id] = gen.Anomaly(kind=kind, start_ts=start, end_ts=FAR_FUTURE)
+                amap[d.id] = gen.Anomaly(kind=kind, start_ts=_start_for(kind, now), end_ts=FAR_FUTURE)
     return amap
 
 
