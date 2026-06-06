@@ -1,0 +1,15 @@
+# Development / test dependencies for running the full unit-test suite locally and in CI.
+#   pip install -r requirements-dev.txt
+# The shared library is installed editable so all services import a single copy.
+-e packages/shared
+
+# test runner
+pytest>=8.0
+pytest-cov>=4.1
+
+# runtime deps the service tests import (API app, engine scheduler, HTTP client)
+fastapi>=0.110
+uvicorn[standard]>=0.27
+apscheduler>=3.10
+httpx>=0.26
+pyyaml>=6.0

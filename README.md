@@ -77,8 +77,16 @@ skills/            bonus Claude Code SKILL.md (Brick + AFDD)
 ## Development & tests
 
 ```bash
-# unit tests (no DB needed — pure logic)
-pip install -e packages/shared pytest
+# install all test deps (shared lib + fastapi + apscheduler + httpx + pytest)
+pip install -r requirements-dev.txt
+
+# run the whole suite (each service in its own process — see note below)
+./scripts/run_tests.sh
+```
+
+Or run a single suite directly:
+
+```bash
 python -m pytest packages/shared/tests
 (cd services/edge-simulator && python -m pytest tests)
 (cd services/api && python -m pytest tests)
@@ -87,6 +95,12 @@ python -m pytest packages/shared/tests
 
 24 unit tests cover the topology builder, Brick mapping, simulator anomalies, ingestion
 resolution, and all four rule evaluators.
+
+> **Why per-service runs?** Each service is an independently-deployable unit with its
+> own top-level `app` package (`services/api/app`, `services/afdd-engine/app`). A single
+> `pytest` invocation across services would collide in `sys.modules` (one service's
+> `app` shadows another). `scripts/run_tests.sh` and CI therefore run each suite in its
+> own process — the standard pattern for a multi-service repo.
 
 ---
 
