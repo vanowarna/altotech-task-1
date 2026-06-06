@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "afdd-shared"
+version = "0.1.0"
+description = "Shared library for the Multi-Site AFDD platform"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.5",
+    "pyyaml>=6.0",
+    "neo4j>=5.14",
+    "asyncpg>=0.29",
+]
+
+[tool.setuptools.packages.find]
+include = ["afdd_shared*"]
